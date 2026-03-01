@@ -1,0 +1,81 @@
+<div class="mx-auto max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8">
+  <div class="grid gap-6 xl:grid-cols-[280px_1fr]">
+    <aside class="rounded-3xl border border-slate-100 bg-white/90 p-5 shadow-card backdrop-blur-sm xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] xl:overflow-auto">
+      <div class="mb-6 border-b border-slate-100 pb-5">
+        <p class="mb-2 inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-brand-700">
+          <lucide-angular [img]="Landmark" [size]="14"></lucide-angular>
+          Finance Hub
+        </p>
+        <h1 class="text-2xl font-extrabold text-slate-900">Gestao financeira</h1>
+        <p class="mt-2 text-sm text-slate-600">Painel operacional, planejamento e governanca em um unico fluxo.</p>
+      </div>
+
+      <nav class="space-y-5">
+        <section *ngFor="let group of navGroups" class="space-y-2">
+          <h2 class="px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{{ group.label }}</h2>
+          <a
+            *ngFor="let item of group.items"
+            [routerLink]="item.path"
+            routerLinkActive="bg-slate-900 text-white border-slate-900"
+            class="block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300"
+          >
+            {{ item.label }}
+          </a>
+        </section>
+      </nav>
+    </aside>
+
+    <main class="pb-8">
+      <header *ngIf="isDashboardRoute(); else compactTopBar" class="rounded-3xl border border-slate-100 bg-white/90 p-5 pb-6 shadow-card backdrop-blur-sm sm:p-6 sm:pb-7">
+        <div class="mb-5 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Cockpit financeiro</p>
+            <h2 class="text-2xl font-extrabold text-slate-900 sm:text-3xl">Controle e analise em tempo real</h2>
+          </div>
+          <button
+            type="button"
+            (click)="theme.toggleTheme()"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300"
+            [attr.aria-label]="theme.isDark() ? 'Ativar modo claro' : 'Ativar modo escuro'"
+            [title]="theme.isDark() ? 'Ativar modo claro' : 'Ativar modo escuro'"
+          >
+            <lucide-angular [img]="theme.isDark() ? Sun : Moon" [size]="18"></lucide-angular>
+          </button>
+        </div>
+
+        <div class="pt-1">
+          <app-global-filter-bar></app-global-filter-bar>
+        </div>
+      </header>
+      <ng-template #compactTopBar>
+        <div class="mb-2 flex justify-end">
+          <button
+            type="button"
+            (click)="theme.toggleTheme()"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300"
+            [attr.aria-label]="theme.isDark() ? 'Ativar modo claro' : 'Ativar modo escuro'"
+            [title]="theme.isDark() ? 'Ativar modo claro' : 'Ativar modo escuro'"
+          >
+            <lucide-angular [img]="theme.isDark() ? Sun : Moon" [size]="18"></lucide-angular>
+          </button>
+        </div>
+      </ng-template>
+
+      <div class="mt-6 space-y-3">
+        <p *ngIf="facade.loading()" class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700">
+          Atualizando dados...
+        </p>
+        <p *ngIf="facade.lastError()" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {{ facade.lastError() }}
+        </p>
+      </div>
+
+      <section class="mt-6">
+        <router-outlet></router-outlet>
+      </section>
+    </main>
+  </div>
+</div>
+
+<app-confirm-dialog></app-confirm-dialog>
+<app-toast-container></app-toast-container>

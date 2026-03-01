@@ -1,0 +1,238 @@
+<div class="space-y-6">
+  <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-xl font-bold text-slate-900">Aparencia</h2>
+      <lucide-angular [img]="Settings" [size]="20" class="text-brand-600"></lucide-angular>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-2">
+      <button
+        type="button"
+        (click)="setTheme('light')"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold"
+        [ngClass]="!theme.isDark() ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'"
+      >
+        <lucide-angular [img]="Sun" [size]="16"></lucide-angular>
+        Tema claro
+      </button>
+      <button
+        type="button"
+        (click)="setTheme('dark')"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold"
+        [ngClass]="theme.isDark() ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'"
+      >
+        <lucide-angular [img]="Moon" [size]="16"></lucide-angular>
+        Tema escuro
+      </button>
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-xl font-bold text-slate-900">Padroes da aplicacao</h2>
+      <lucide-angular [img]="Settings" [size]="20" class="text-brand-600"></lucide-angular>
+    </div>
+
+    <form [formGroup]="preferencesForm" (ngSubmit)="savePreferences()" class="grid gap-3 md:grid-cols-2">
+      <div class="md:col-span-2 rounded-2xl border border-slate-200 p-4">
+        <p class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Categorias de saida</p>
+        <div class="mb-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            [(ngModel)]="newBillCategory"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Nova categoria de saida"
+            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            (click)="addBillCategory()"
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white"
+          >
+            <lucide-angular [img]="Plus" [size]="14"></lucide-angular>
+            Adicionar
+          </button>
+        </div>
+        <div class="space-y-2">
+          <div *ngFor="let category of billCategories; let index = index" class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <ng-container *ngIf="editingBillCategoryIndex !== index; else editBillCategoryTpl">
+              <span class="flex-1 text-sm text-slate-800">{{ category }}</span>
+              <button type="button" (click)="startEditBillCategory(index)" class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+                <lucide-angular [img]="Pencil" [size]="12"></lucide-angular>
+                Editar
+              </button>
+              <button type="button" (click)="removeBillCategory(index)" class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700">
+                <lucide-angular [img]="Trash2" [size]="12"></lucide-angular>
+                Excluir
+              </button>
+            </ng-container>
+            <ng-template #editBillCategoryTpl>
+              <input
+                type="text"
+                [(ngModel)]="editingBillCategoryValue"
+                [ngModelOptions]="{ standalone: true }"
+                class="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+              />
+              <button type="button" (click)="saveBillCategoryEdit(index)" class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                <lucide-angular [img]="Check" [size]="12"></lucide-angular>
+                Salvar
+              </button>
+              <button type="button" (click)="cancelBillCategoryEdit()" class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+                <lucide-angular [img]="X" [size]="12"></lucide-angular>
+                Cancelar
+              </button>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Categoria padrao de saida
+        <select formControlName="defaultBillCategory" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option *ngFor="let category of billCategories" [value]="category">{{ category }}</option>
+        </select>
+      </label>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Dia padrao de vencimento
+        <input type="number" min="1" max="31" formControlName="defaultBillDueDay" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+
+      <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+        <input type="checkbox" formControlName="defaultBillRecurring" class="size-4 rounded border-slate-300" />
+        Saidas recorrentes por padrao
+      </label>
+
+      <div class="hidden md:block"></div>
+
+      <div class="md:col-span-2 rounded-2xl border border-slate-200 p-4">
+        <p class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Categorias de entrada</p>
+        <div class="mb-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            [(ngModel)]="newIncomeCategory"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Nova categoria de entrada"
+            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            (click)="addIncomeCategory()"
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white"
+          >
+            <lucide-angular [img]="Plus" [size]="14"></lucide-angular>
+            Adicionar
+          </button>
+        </div>
+        <div class="space-y-2">
+          <div *ngFor="let category of incomeCategories; let index = index" class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <ng-container *ngIf="editingIncomeCategoryIndex !== index; else editIncomeCategoryTpl">
+              <span class="flex-1 text-sm text-slate-800">{{ category }}</span>
+              <button type="button" (click)="startEditIncomeCategory(index)" class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+                <lucide-angular [img]="Pencil" [size]="12"></lucide-angular>
+                Editar
+              </button>
+              <button type="button" (click)="removeIncomeCategory(index)" class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700">
+                <lucide-angular [img]="Trash2" [size]="12"></lucide-angular>
+                Excluir
+              </button>
+            </ng-container>
+            <ng-template #editIncomeCategoryTpl>
+              <input
+                type="text"
+                [(ngModel)]="editingIncomeCategoryValue"
+                [ngModelOptions]="{ standalone: true }"
+                class="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+              />
+              <button type="button" (click)="saveIncomeCategoryEdit(index)" class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                <lucide-angular [img]="Check" [size]="12"></lucide-angular>
+                Salvar
+              </button>
+              <button type="button" (click)="cancelIncomeCategoryEdit()" class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+                <lucide-angular [img]="X" [size]="12"></lucide-angular>
+                Cancelar
+              </button>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Categoria padrao de entrada
+        <select formControlName="defaultIncomeCategory" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option *ngFor="let category of incomeCategories" [value]="category">{{ category }}</option>
+        </select>
+      </label>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Dia padrao de recebimento
+        <input type="number" min="1" max="31" formControlName="defaultIncomeReceivedDay" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+
+      <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+        <input type="checkbox" formControlName="defaultIncomeRecurring" class="size-4 rounded border-slate-300" />
+        Entradas recorrentes por padrao
+      </label>
+
+      <div class="hidden md:block"></div>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Modo padrao do dashboard
+        <select formControlName="defaultDashboardMode" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="month">Mes x mes</option>
+          <option value="range">Intervalo customizado</option>
+        </select>
+      </label>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Distancia padrao entre meses (dashboard)
+        <input type="number" min="1" max="12" formControlName="defaultDashboardMonthComparisonOffset" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+
+      <button type="submit" class="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white">
+        <lucide-angular [img]="Save" [size]="16"></lucide-angular>
+        Salvar padroes
+      </button>
+    </form>
+  </section>
+
+  <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-xl font-bold text-slate-900">Retencao e auditoria</h2>
+      <lucide-angular [img]="Clock3" [size]="20" class="text-brand-600"></lucide-angular>
+    </div>
+
+    <form [formGroup]="retentionForm" (ngSubmit)="saveRetention()" class="grid gap-3 md:grid-cols-2">
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Dias na lixeira
+        <input type="number" formControlName="trashRetentionDays" min="1" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Dias de auditoria
+        <input type="number" formControlName="auditRetentionDays" min="1" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <button type="submit" class="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white">
+        <lucide-angular [img]="Save" [size]="16"></lucide-angular>
+        Salvar configuracoes
+      </button>
+    </form>
+  </section>
+
+  <section class="rounded-3xl border border-rose-200 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-xl font-bold text-slate-900">Acao de emergencia</h2>
+      <lucide-angular [img]="Trash2" [size]="20" class="text-rose-600"></lucide-angular>
+    </div>
+    <p class="mb-4 text-sm text-slate-600">
+      Use apenas se necessario. Esta acao zera os dados de todas as tabelas do banco e nao pode ser desfeita.
+    </p>
+    <button
+      type="button"
+      (click)="emergencyResetAllData()"
+      class="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white"
+    >
+      <lucide-angular [img]="Trash2" [size]="16"></lucide-angular>
+      Zerar dados da base
+    </button>
+  </section>
+</div>

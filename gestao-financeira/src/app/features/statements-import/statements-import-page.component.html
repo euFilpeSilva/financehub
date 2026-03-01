@@ -1,0 +1,71 @@
+<article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+  <div class="mb-5 flex items-center justify-between gap-3">
+    <div>
+      <h2 class="text-xl font-bold text-slate-900">Importar Extratos OFX</h2>
+      <p class="text-sm text-slate-600">Arraste um arquivo OFX ou selecione arquivo/pasta para popular o banco com transacoes reais.</p>
+    </div>
+    <lucide-angular [img]="UploadCloud" [size]="22" class="text-brand-600"></lucide-angular>
+  </div>
+
+  <form [formGroup]="form" class="mb-4 grid gap-3 md:grid-cols-2">
+    <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      Nome titular
+      <input
+        type="text"
+        formControlName="ownerName"
+        class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+      />
+    </label>
+    <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      CPF titular
+      <input
+        type="text"
+        formControlName="ownerCpf"
+        class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+      />
+    </label>
+  </form>
+
+  <div
+    *ngIf="!hasEligibleIncomeAccount()"
+    class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+  >
+    Importacao OFX bloqueada: cadastre e marque pelo menos uma conta ativa como elegivel para entrada em Contas bancarias.
+  </div>
+
+  <div
+    class="rounded-2xl border-2 border-dashed p-8 text-center transition"
+    [ngClass]="dragging() ? 'border-brand-500 bg-brand-50' : 'border-slate-300 bg-slate-50/70'"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+  >
+    <p class="mb-3 text-sm font-semibold text-slate-700">Arraste e solte arquivos `.ofx` aqui</p>
+    <div class="flex flex-wrap items-center justify-center gap-2">
+      <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white">
+        <lucide-angular [img]="FileUp" [size]="16"></lucide-angular>
+        Selecionar arquivo(s)
+        <input type="file" accept=".ofx" multiple class="hidden" (change)="onFileSelection($event)" />
+      </label>
+
+      <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+        <lucide-angular [img]="FolderOpen" [size]="16"></lucide-angular>
+        Selecionar pasta
+        <input type="file" accept=".ofx" webkitdirectory directory class="hidden" (change)="onFileSelection($event)" />
+      </label>
+    </div>
+  </div>
+
+  <div *ngIf="facade.lastOfxImport() as result" class="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+    <h3 class="mb-2 text-sm font-bold text-slate-800">Ultima importacao</h3>
+    <ul class="space-y-1 text-sm text-slate-700">
+      <li><strong>Arquivo:</strong> {{ result.fileName }}</li>
+      <li><strong>Transacoes lidas:</strong> {{ result.totalTransactions }}</li>
+      <li><strong>Saidas criadas:</strong> {{ result.createdBills }}</li>
+      <li><strong>Entradas criadas:</strong> {{ result.createdIncomes }}</li>
+      <li><strong>Duplicadas ignoradas:</strong> {{ result.skippedDuplicates }}</li>
+      <li><strong>Transferencias internas marcadas:</strong> {{ result.internalTransfersMarked }}</li>
+    </ul>
+  </div>
+</article>
+

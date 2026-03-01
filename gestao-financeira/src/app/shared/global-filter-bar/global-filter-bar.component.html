@@ -1,0 +1,49 @@
+<div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      Mes
+      <input
+        type="month"
+        [(ngModel)]="selectedMonth"
+        class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+      />
+    </label>
+
+    <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      Data inicial
+      <input
+        type="date"
+        [(ngModel)]="filterStart"
+        class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+      />
+    </label>
+
+    <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      Data final
+      <input
+        type="date"
+        [(ngModel)]="filterEnd"
+        class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+      />
+    </label>
+  </div>
+
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+    <button
+      type="button"
+      (click)="applyCurrentMonth()"
+      class="whitespace-nowrap rounded-xl border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-100"
+    >
+      Ir para mes atual
+    </button>
+
+    <button
+      type="button"
+      (click)="clearFilter()"
+      class="inline-flex whitespace-nowrap items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+    >
+      <lucide-angular [img]="FilterX" [size]="16"></lucide-angular>
+      Limpar filtro
+    </button>
+  </div>
+</div>

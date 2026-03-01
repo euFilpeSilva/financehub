@@ -1,0 +1,420 @@
+<div class="space-y-6">
+  <section class="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+    <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+      <div class="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Performance geral</p>
+          <h2 class="text-2xl font-extrabold text-slate-900">Cockpit de economia</h2>
+          <p class="mt-1 text-sm text-slate-600">Analise de meses com melhor resultado e picos de gasto.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" (click)="explainDashboardCard('performance')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de performance geral">
+            <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+          </button>
+          <lucide-angular [img]="LineChart" [size]="20" class="text-brand-600"></lucide-angular>
+        </div>
+      </div>
+
+      <app-summary-cards></app-summary-cards>
+
+      <div class="mt-5 grid gap-3 md:grid-cols-2">
+        <div class="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+          <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Melhor mes para economizar</p>
+          <p class="mt-1 text-sm font-semibold text-emerald-900" *ngIf="facade.bestSavingsMonth() as best; else semMelhorMes">
+            {{ best.month }} | {{ best.savings | currency:'BRL':'symbol':'1.2-2' }}
+          </p>
+          <ng-template #semMelhorMes>
+            <p class="mt-1 text-sm text-emerald-900">Sem dados suficientes</p>
+          </ng-template>
+        </div>
+
+        <div class="rounded-2xl border border-rose-100 bg-rose-50/70 p-4">
+          <p class="text-xs font-bold uppercase tracking-wide text-rose-700">Mes com maior gasto</p>
+          <p class="mt-1 text-sm font-semibold text-rose-900" *ngIf="facade.highestExpenseMonth() as worst; else semPiorMes">
+            {{ worst.month }} | {{ worst.expenses | currency:'BRL':'symbol':'1.2-2' }}
+          </p>
+          <ng-template #semPiorMes>
+            <p class="mt-1 text-sm text-rose-900">Sem dados suficientes</p>
+          </ng-template>
+        </div>
+      </div>
+    </article>
+
+    <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-slate-900">Resumo rapido</h2>
+        <div class="flex items-center gap-2">
+          <button type="button" (click)="explainDashboardCard('quick-summary')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de resumo rapido">
+            <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+          </button>
+          <lucide-angular [img]="CalendarClock" [size]="18" class="text-brand-600"></lucide-angular>
+        </div>
+      </div>
+
+      <div class="mb-4 rounded-2xl bg-slate-50 p-4">
+        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Proximas contas</p>
+        <div class="space-y-2 text-sm">
+          <div *ngFor="let item of facade.upcomingBills()" class="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2">
+            <div>
+              <p class="font-semibold text-slate-800">{{ item.description }}</p>
+              <p class="text-xs text-slate-500">{{ item.dueDate | date:'dd/MM' }}</p>
+            </div>
+            <strong class="text-slate-800">{{ item.amount | currency:'BRL':'symbol':'1.0-0' }}</strong>
+          </div>
+          <p *ngIf="!facade.upcomingBills().length" class="text-xs text-slate-500">Sem contas pendentes no periodo.</p>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-slate-50 p-4">
+        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Indicadores do periodo</p>
+        <ul class="space-y-2 text-sm text-slate-700">
+          <li class="flex items-center justify-between gap-2">
+            <span>Contas pagas</span>
+            <strong>{{ facade.paidBillsTotal() | currency:'BRL':'symbol':'1.2-2' }}</strong>
+          </li>
+          <li class="flex items-center justify-between gap-2">
+            <span>Contas pendentes</span>
+            <strong>{{ facade.pendingBillsTotal() | currency:'BRL':'symbol':'1.2-2' }}</strong>
+          </li>
+          <li class="flex items-center justify-between gap-2">
+            <span>Entradas registradas</span>
+            <strong>{{ facade.filteredIncomes().length }}</strong>
+          </li>
+          <li class="flex items-center justify-between gap-2">
+            <span>Metas ativas</span>
+            <strong>{{ facade.allGoals().length }}</strong>
+          </li>
+        </ul>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid gap-6 xl:grid-cols-[1.3fr_1fr]">
+    <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-slate-900">Comparador de periodos</h2>
+        <div class="flex items-center gap-2">
+          <button type="button" (click)="explainDashboardCard('comparison')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de comparador de periodos">
+            <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+          </button>
+          <lucide-angular [img]="CalendarRange" [size]="20" class="text-brand-600"></lucide-angular>
+        </div>
+      </div>
+
+      <div class="mb-4 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          (click)="setMode('month')"
+          class="rounded-xl border px-3 py-2 text-sm font-semibold"
+          [ngClass]="comparisonMode() === 'month' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'"
+        >
+          Mes x mes
+        </button>
+        <button
+          type="button"
+          (click)="setMode('range')"
+          class="rounded-xl border px-3 py-2 text-sm font-semibold"
+          [ngClass]="comparisonMode() === 'range' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'"
+        >
+          Intervalos customizados
+        </button>
+      </div>
+
+      <form [formGroup]="comparisonForm" class="mb-4 grid gap-3" *ngIf="comparisonMode() === 'month'">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Mes A
+            <input type="month" formControlName="monthA" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Mes B
+            <input type="month" formControlName="monthB" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+        </div>
+      </form>
+
+      <form [formGroup]="comparisonForm" class="mb-4 grid gap-3" *ngIf="comparisonMode() === 'range'">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Intervalo A inicio
+            <input type="date" formControlName="rangeAStart" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Intervalo A fim
+            <input type="date" formControlName="rangeAEnd" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Intervalo B inicio
+            <input type="date" formControlName="rangeBStart" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Intervalo B fim
+            <input type="date" formControlName="rangeBEnd" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+        </div>
+      </form>
+
+      <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+          {{ comparisonResult.firstLabel }} -> {{ comparisonResult.secondLabel }}
+        </p>
+        <ul class="space-y-2 text-sm">
+          <li class="flex items-center justify-between gap-2">
+            <span>Variacao de entradas</span>
+            <strong [ngClass]="comparisonResult.incomeDelta >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+              {{ comparisonResult.incomeDelta | currency:'BRL':'symbol':'1.2-2' }}
+            </strong>
+          </li>
+          <li class="flex items-center justify-between gap-2">
+            <span>Variacao de gastos</span>
+            <strong [ngClass]="comparisonResult.expenseDelta <= 0 ? 'text-emerald-700' : 'text-rose-700'">
+              {{ comparisonResult.expenseDelta | currency:'BRL':'symbol':'1.2-2' }}
+            </strong>
+          </li>
+          <li class="flex items-center justify-between gap-2">
+            <span>Variacao de economia</span>
+            <strong [ngClass]="comparisonResult.savingsDelta >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+              {{ comparisonResult.savingsDelta | currency:'BRL':'symbol':'1.2-2' }}
+            </strong>
+          </li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-slate-900">Serie mensal</h2>
+        <button type="button" (click)="explainDashboardCard('monthly-series')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de serie mensal">
+          <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+        </button>
+      </div>
+      <div class="max-h-[360px] overflow-auto rounded-2xl border border-slate-100">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left">Mes</th>
+              <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left">Entradas</th>
+              <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left">Gastos</th>
+              <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left">Economia</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 bg-white">
+            <tr *ngFor="let row of facade.monthlyPerformance()">
+              <td class="px-3 py-3 font-semibold text-slate-800">{{ row.month }}</td>
+              <td class="px-3 py-3 text-slate-700">{{ row.income | currency:'BRL':'symbol':'1.2-2' }}</td>
+              <td class="px-3 py-3 text-slate-700">{{ row.expenses | currency:'BRL':'symbol':'1.2-2' }}</td>
+              <td class="px-3 py-3 font-semibold" [ngClass]="row.savings >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+                {{ row.savings | currency:'BRL':'symbol':'1.2-2' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid gap-6 xl:grid-cols-2">
+    <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-slate-900">Conciliacao por conta</h2>
+        <div class="flex items-center gap-2">
+          <button type="button" (click)="explainDashboardCard('reconciliation')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de conciliacao por conta">
+            <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+          </button>
+          <lucide-angular [img]="Settings2" [size]="20" class="text-brand-600"></lucide-angular>
+        </div>
+      </div>
+
+      <form [formGroup]="reconciliationForm" class="grid gap-3 md:grid-cols-2" (ngSubmit)="runReconciliation()">
+        <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2">
+          Conta
+          <select formControlName="bankAccountId" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+            <option value="">Selecione uma conta</option>
+            <option *ngFor="let account of facade.bankAccounts()" [value]="account.id">{{ account.label }}</option>
+          </select>
+        </label>
+
+        <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Data inicial
+          <input type="date" formControlName="startDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        </label>
+
+        <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Data final
+          <input type="date" formControlName="endDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        </label>
+
+        <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2">
+          Saldo de referencia (opcional)
+          <input type="text" inputmode="decimal" appCurrencyMask formControlName="referenceBalance" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        </label>
+
+        <div class="md:col-span-2">
+          <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white">
+            Calcular conciliacao
+          </button>
+        </div>
+      </form>
+
+      <div *ngIf="facade.accountReconciliation() as reconciliation" class="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">{{ reconciliation.bankAccountLabel }} | {{ reconciliation.startDate }} a {{ reconciliation.endDate }}</p>
+        <ul class="mt-2 space-y-1 text-sm text-slate-700">
+          <li class="flex items-center justify-between gap-2"><span>Entradas</span><strong>{{ reconciliation.incomeTotal | currency:'BRL':'symbol':'1.2-2' }}</strong></li>
+          <li class="flex items-center justify-between gap-2"><span>Saidas</span><strong>{{ reconciliation.expenseTotal | currency:'BRL':'symbol':'1.2-2' }}</strong></li>
+          <li class="flex items-center justify-between gap-2"><span>Saldo calculado</span><strong>{{ reconciliation.calculatedBalance | currency:'BRL':'symbol':'1.2-2' }}</strong></li>
+          <li *ngIf="reconciliation.referenceBalance !== null && reconciliation.referenceBalance !== undefined" class="flex items-center justify-between gap-2"><span>Saldo de referencia</span><strong>{{ reconciliation.referenceBalance | currency:'BRL':'symbol':'1.2-2' }}</strong></li>
+          <li *ngIf="reconciliation.difference !== null && reconciliation.difference !== undefined" class="flex items-center justify-between gap-2">
+            <span>Diferenca</span>
+            <strong [ngClass]="reconciliation.difference === 0 ? 'text-emerald-700' : 'text-rose-700'">{{ reconciliation.difference | currency:'BRL':'symbol':'1.2-2' }}</strong>
+          </li>
+          <li class="pt-1 text-xs text-slate-500">Lancamentos legados por texto: {{ reconciliation.legacyIncomeMatches }} entradas e {{ reconciliation.legacyExpenseMatches }} saidas.</li>
+        </ul>
+
+        <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2" *ngIf="reconciliationTopCauses().length">
+          <p class="text-xs font-bold uppercase tracking-wide text-amber-800">Top 5 possiveis causas</p>
+          <ul class="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">
+            <li *ngFor="let cause of reconciliationTopCauses()">{{ cause }}</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-slate-900">Metas de gasto</h2>
+        <div class="flex items-center gap-2">
+          <button type="button" (click)="explainDashboardCard('spending-goals')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de metas de gasto">
+            <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+          </button>
+          <lucide-angular [img]="Settings2" [size]="20" class="text-brand-600"></lucide-angular>
+        </div>
+      </div>
+
+      <form [formGroup]="spendingGoalForm" (ngSubmit)="submitSpendingGoal()" class="grid gap-3 md:grid-cols-2">
+        <input type="text" formControlName="title" placeholder="Nome da meta" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <input type="text" inputmode="decimal" appCurrencyMask formControlName="limitAmount" placeholder="Limite de gasto" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+
+        <select formControlName="category" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todas as categorias</option>
+          <option *ngFor="let category of facade.availableExpenseCategories()" [value]="category">{{ category }}</option>
+        </select>
+
+        <select formControlName="schedule" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="monthly">Programacao mensal</option>
+          <option value="custom">Intervalo personalizado</option>
+        </select>
+
+        <ng-container *ngIf="spendingGoalForm.controls.schedule.value === 'monthly'; else customSchedule">
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2">
+            Iniciar no mes
+            <input type="month" formControlName="startMonth" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+        </ng-container>
+
+        <ng-template #customSchedule>
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Data inicial
+            <input type="date" formControlName="startDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Data final
+            <input type="date" formControlName="endDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+        </ng-template>
+
+        <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 md:col-span-2">
+          <input type="checkbox" formControlName="active" class="size-4 rounded border-slate-300" />
+          Meta ativa
+        </label>
+
+        <div class="md:col-span-2 flex gap-2">
+          <button type="button" (click)="submitSpendingGoal()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white">
+            <lucide-angular [img]="Plus" [size]="16"></lucide-angular>
+            {{ editingSpendingGoalId ? 'Salvar edicao' : 'Criar meta de gasto' }}
+          </button>
+          <button
+            *ngIf="editingSpendingGoalId"
+            type="button"
+            (click)="cancelEditSpendingGoal()"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+          >
+            <lucide-angular [img]="X" [size]="15"></lucide-angular>
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </article>
+
+    <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-slate-900">Acompanhamento das metas</h2>
+        <button type="button" (click)="explainDashboardCard('goals-tracking')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de acompanhamento das metas">
+          <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+        </button>
+      </div>
+      <div class="space-y-3">
+        <article *ngFor="let status of facade.spendingGoalStatuses()" class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+          <div class="mb-2 flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-semibold text-slate-900">{{ status.goal.title }}</h3>
+              <p class="text-xs text-slate-500">{{ status.goal.category === 'ALL' ? 'Todas categorias' : status.goal.category }} | {{ status.periodLabel }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                (click)="toggleSpendingGoal(status.goal.id)"
+                class="rounded-full px-3 py-1 text-xs font-semibold"
+                [ngClass]="status.goal.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'"
+              >
+                {{ status.goal.active ? 'Ativa' : 'Inativa' }}
+              </button>
+              <button
+                type="button"
+                (click)="startEditSpendingGoal(status.goal)"
+                class="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700"
+              >
+                <span class="inline-flex items-center gap-1">
+                  <lucide-angular [img]="Pencil" [size]="12"></lucide-angular>
+                  Editar
+                </span>
+              </button>
+              <button
+                type="button"
+                (click)="removeSpendingGoal(status.goal)"
+                class="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700"
+              >
+                <span class="inline-flex items-center gap-1">
+                  <lucide-angular [img]="Trash2" [size]="12"></lucide-angular>
+                  Excluir
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-2 flex items-center justify-between text-xs font-semibold text-slate-600">
+            <span>Gasto {{ status.spentAmount | currency:'BRL':'symbol':'1.2-2' }}</span>
+            <span>Limite {{ status.goal.limitAmount | currency:'BRL':'symbol':'1.2-2' }}</span>
+          </div>
+          <div class="mb-2 h-2 overflow-hidden rounded-full bg-slate-200">
+            <div
+              class="h-full rounded-full transition-all"
+              [ngClass]="status.onTrack ? 'bg-emerald-500' : 'bg-rose-500'"
+              [style.width.%]="status.usagePercent > 100 ? 100 : status.usagePercent"
+            ></div>
+          </div>
+
+          <p class="text-xs font-semibold" [ngClass]="status.onTrack ? 'text-emerald-700' : 'text-rose-700'">
+            {{ status.onTrack ? 'Dentro da meta' : 'Acima da meta' }}
+            | Saldo: {{ status.remainingAmount | currency:'BRL':'symbol':'1.2-2' }}
+          </p>
+        </article>
+
+        <div *ngIf="!facade.spendingGoalStatuses().length" class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+          Nenhuma meta de gasto configurada.
+        </div>
+      </div>
+    </article>
+  </section>
+</div>

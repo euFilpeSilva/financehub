@@ -1,0 +1,59 @@
+<section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+  <article class="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-card">
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+        <lucide-angular [img]="ArrowUpCircle" [size]="15"></lucide-angular>
+        Entradas
+      </p>
+      <button type="button" (click)="explainCard('incomes')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de entradas">
+        <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+      </button>
+    </div>
+    <strong class="block break-words text-lg leading-tight text-slate-900 xl:text-xl 2xl:text-2xl">{{ facade.incomeTotal() | currency:'BRL':'symbol':'1.2-2' }}</strong>
+    <p class="mt-2 text-xs text-slate-500">Periodo selecionado</p>
+  </article>
+
+  <article class="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-card">
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+        <lucide-angular [img]="ArrowDownCircle" [size]="15"></lucide-angular>
+        Contas
+      </p>
+      <button type="button" (click)="explainCard('expenses')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de contas">
+        <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+      </button>
+    </div>
+    <strong class="block break-words text-lg leading-tight text-slate-900 xl:text-xl 2xl:text-2xl">{{ facade.expenseTotal() | currency:'BRL':'symbol':'1.2-2' }}</strong>
+    <p class="mt-2 text-xs text-slate-500">Pagas + pendentes</p>
+  </article>
+
+  <article class="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-card">
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+        <lucide-angular [img]="WalletCards" [size]="15"></lucide-angular>
+        Saldo
+      </p>
+      <button type="button" (click)="explainCard('balance')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de saldo">
+        <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+      </button>
+    </div>
+    <strong class="block break-words text-lg leading-tight xl:text-xl 2xl:text-2xl" [ngClass]="facade.balance() >= 0 ? 'text-brand-700' : 'text-rose-600'">
+      {{ facade.balance() | currency:'BRL':'symbol':'1.2-2' }}
+    </strong>
+    <p class="mt-2 text-xs text-slate-500">Entradas - contas</p>
+  </article>
+
+  <article class="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-card">
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+        <lucide-angular [img]="Goal" [size]="15"></lucide-angular>
+        Planejamento
+      </p>
+      <button type="button" (click)="explainCard('planning')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de planejamento">
+        <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+      </button>
+    </div>
+    <strong class="block break-words text-lg leading-tight text-slate-900 xl:text-xl 2xl:text-2xl">{{ goalCompletionRatio | percent:'1.0-0' }}</strong>
+    <p class="mt-2 text-xs text-slate-500">Media de progresso de metas</p>
+  </article>
+</section>

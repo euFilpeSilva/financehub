@@ -1,0 +1,32 @@
+# ---- Environment files ----
+.env
+.env.local
+.env.*.local
+backend-financeiro/.env
+
+# Keep example env files versioned
+!.env.example
+!backend-financeiro/.env.example
+
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---- Backend (Spring/Maven) ----
+backend-financeiro/target/
+backend-financeiro/.mvn/
+backend-financeiro/backups/
+
+# ---- Frontend (Angular/Node) ----
+gestao-financeira/node_modules/
+gestao-financeira/dist/
+gestao-financeira/.angular/
+gestao-financeira/coverage/
+
+# ---- Misc ----
+*.log
+
+# ---- Dados sensíveis locais ----
+extratos/

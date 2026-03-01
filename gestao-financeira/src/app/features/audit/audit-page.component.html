@@ -1,0 +1,152 @@
+<div class="space-y-6">
+  <app-filter-panel title="Filtros de auditoria" subtitle="Refine por data, tipo, acao, nome e faixa de valor.">
+    <form [formGroup]="filterForm" class="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Data inicial
+        <input type="date" formControlName="startDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Data final
+        <input type="date" formControlName="endDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Tipo
+        <select formControlName="entityType" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todos</option>
+          <option value="bill">Saida</option>
+          <option value="income">Entrada</option>
+          <option value="planning-goal">Meta</option>
+          <option value="spending-goal">Meta de gasto</option>
+          <option value="transfer">Transferencia</option>
+          <option value="statement">Extrato</option>
+          <option value="settings">Configuracoes</option>
+          <option value="preferences">Preferencias</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Acao
+        <select formControlName="action" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todas</option>
+          <option value="import">Importacao</option>
+          <option value="create">Criacao</option>
+          <option value="update">Atualizacao</option>
+          <option value="delete">Exclusao</option>
+          <option value="restore">Restauracao</option>
+          <option value="purge">Exclusao permanente</option>
+          <option value="toggle-status">Mudanca de status</option>
+          <option value="export">Exportacao</option>
+          <option value="link-internal">Vinculo interno</option>
+          <option value="auto-link-internal">Vinculo interno automatico</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Banco das transacoes
+        <select formControlName="transactionBankAccountId" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todos</option>
+          <option *ngFor="let account of facade.bankAccounts()" [value]="account.id">{{ account.label }}</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Banco da importacao OFX
+        <select formControlName="statementImportBankAccountId" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todos</option>
+          <option *ngFor="let account of facade.bankAccounts()" [value]="account.id">{{ account.label }}</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2 xl:col-span-4">
+        Nome
+        <input type="text" formControlName="name" placeholder="Ex.: Aluguel" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Valor minimo
+        <input type="text" inputmode="decimal" appCurrencyMask formControlName="minValue" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Valor maximo
+        <input type="text" inputmode="decimal" appCurrencyMask formControlName="maxValue" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+    </form>
+
+    <div class="mt-3 flex gap-2">
+      <button
+        type="button"
+        (click)="applyFilters()"
+        class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+      >
+        Aplicar filtros
+      </button>
+      <button
+        type="button"
+        (click)="clearFilters()"
+        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+      >
+        Limpar filtros
+      </button>
+    </div>
+  </app-filter-panel>
+
+  <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-xl font-bold text-slate-900">Auditoria</h2>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          (click)="viewMode.set('list')"
+          class="rounded-xl border px-3 py-2 text-xs font-bold"
+          [ngClass]="viewMode() === 'list' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'"
+        >
+          Lista
+        </button>
+        <button
+          type="button"
+          (click)="viewMode.set('grid')"
+          class="rounded-xl border px-3 py-2 text-xs font-bold"
+          [ngClass]="viewMode() === 'grid' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'"
+        >
+          Grade
+        </button>
+        <lucide-angular [img]="History" [size]="20" class="text-brand-600"></lucide-angular>
+      </div>
+    </div>
+
+    <div *ngIf="viewMode() === 'list'" class="max-h-[640px] overflow-auto rounded-2xl border border-slate-100">
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left"><button type="button" class="font-bold" (click)="setSort('timestamp')">Quando {{ sortLabel('timestamp') }}</button></th>
+            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left"><button type="button" class="font-bold" (click)="setSort('entityType')">Tipo {{ sortLabel('entityType') }}</button></th>
+            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left"><button type="button" class="font-bold" (click)="setSort('entityName')">Nome {{ sortLabel('entityName') }}</button></th>
+            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left"><button type="button" class="font-bold" (click)="setSort('amount')">Valor {{ sortLabel('amount') }}</button></th>
+            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left"><button type="button" class="font-bold" (click)="setSort('action')">Acao {{ sortLabel('action') }}</button></th>
+            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-left">Detalhe</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 bg-white">
+          <tr *ngFor="let log of filteredEvents()">
+            <td class="px-3 py-3 text-slate-600">{{ log.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="px-3 py-3 text-slate-700">{{ entityLabel(log.entityType) }}</td>
+            <td class="px-3 py-3 text-slate-700">{{ log.entityName || '-' }}</td>
+            <td class="px-3 py-3 text-slate-700">{{ log.amount !== undefined ? (log.amount | currency:'BRL':'symbol':'1.2-2') : '-' }}</td>
+            <td class="px-3 py-3 font-semibold text-slate-800">{{ auditActionLabel(log.action) }}</td>
+            <td class="px-3 py-3 text-slate-700">{{ log.message }}</td>
+          </tr>
+          <tr *ngIf="!filteredEvents().length">
+            <td colspan="6" class="px-3 py-6 text-center text-sm text-slate-500">Nenhum evento encontrado para os filtros aplicados.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="viewMode() === 'grid'" class="space-y-3">
+      <article *ngFor="let log of filteredEvents()" class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+        <p class="text-xs text-slate-500">{{ log.timestamp | date:'dd/MM/yyyy HH:mm' }} | {{ entityLabel(log.entityType) }}</p>
+        <p class="mt-1 text-sm font-semibold text-slate-900">{{ log.entityName || '-' }} | {{ auditActionLabel(log.action) }}</p>
+        <p class="mt-1 text-sm text-slate-700">{{ log.message }}</p>
+        <p class="mt-1 text-xs text-slate-500">Valor: {{ log.amount !== undefined ? (log.amount | currency:'BRL':'symbol':'1.2-2') : '-' }}</p>
+      </article>
+      <div *ngIf="!filteredEvents().length" class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+        Nenhum evento encontrado para os filtros aplicados.
+      </div>
+    </div>
+  </section>
+</div>

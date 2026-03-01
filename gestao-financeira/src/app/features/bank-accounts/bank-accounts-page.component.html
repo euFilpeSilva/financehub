@@ -1,0 +1,129 @@
+<div class="space-y-6">
+  <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4 flex items-center justify-between">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Fluxo de contas</p>
+        <h2 class="text-2xl font-extrabold text-slate-900">Contas bancarias</h2>
+      </div>
+      <lucide-angular [img]="Building2" [size]="20" class="text-brand-600"></lucide-angular>
+    </div>
+
+    <p class="mb-4 text-sm text-slate-600">
+      Cadastre suas contas para identificar melhor transferencias internas e marcar contas elegiveis para entrada.
+    </p>
+
+    <form [formGroup]="accountForm" (ngSubmit)="save()" class="grid gap-3 md:grid-cols-2">
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2">
+        Nome da conta
+        <input type="text" formControlName="label" placeholder="Ex.: Nubank" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Codigo do banco (BANKID)
+        <input type="text" formControlName="bankId" placeholder="260" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Agencia (opcional)
+        <input type="text" formControlName="branchId" placeholder="0001" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2">
+        Numero da conta (ACCTID)
+        <input type="text" formControlName="accountId" placeholder="107022786" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+
+      <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+        <input type="checkbox" formControlName="primaryIncome" class="size-4 rounded border-slate-300" />
+        Conta elegivel para entrada
+      </label>
+
+      <div
+        *ngIf="accountForm.controls.primaryIncome.value"
+        class="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+      >
+        Alerta: ao salvar como elegivel para entrada, esta conta passa a influenciar a classificacao de entradas no importador OFX (ex.: diferenciar entrada real de transferencia interna).
+      </div>
+
+      <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+        <input type="checkbox" formControlName="active" class="size-4 rounded border-slate-300" />
+        Conta ativa
+      </label>
+
+      <div class="md:col-span-2 flex gap-2">
+        <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white">
+          <lucide-angular [img]="editingId ? Save : Plus" [size]="16"></lucide-angular>
+          {{ editingId ? 'Salvar conta' : 'Adicionar conta' }}
+        </button>
+        <button
+          *ngIf="editingId"
+          type="button"
+          (click)="cancelEdit()"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+        >
+          <lucide-angular [img]="X" [size]="15"></lucide-angular>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-xl font-bold text-slate-900">Contas cadastradas</h3>
+      <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ facade.bankAccounts().length }}</span>
+    </div>
+
+    <div class="space-y-3" *ngIf="facade.bankAccounts().length; else emptyState">
+      <article *ngFor="let account of facade.bankAccounts()" class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="space-y-1">
+            <p class="text-base font-bold text-slate-900">{{ account.label }}</p>
+            <p class="text-xs text-slate-600">BANKID: {{ account.bankId }} | ACCTID: {{ account.accountId }}</p>
+            <p *ngIf="account.branchId" class="text-xs text-slate-600">Agencia: {{ account.branchId }}</p>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <span
+                class="rounded-full px-2 py-1 text-xs font-semibold"
+                [ngClass]="account.primaryIncome ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'"
+              >
+                {{ account.primaryIncome ? 'Elegivel para entrada' : 'Nao elegivel' }}
+              </span>
+              <span
+                class="rounded-full px-2 py-1 text-xs font-semibold"
+                [ngClass]="account.active ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-700'"
+              >
+                {{ account.active ? 'Ativa' : 'Inativa' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button
+              *ngIf="!account.primaryIncome"
+              type="button"
+              (click)="setPrimary(account)"
+              class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700"
+            >
+              <lucide-angular [img]="Check" [size]="12"></lucide-angular>
+              Marcar elegivel
+            </button>
+            <button type="button" (click)="startEdit(account)" class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
+              <lucide-angular [img]="Pencil" [size]="12"></lucide-angular>
+              Editar
+            </button>
+            <button type="button" (click)="remove(account)" class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+              <lucide-angular [img]="Trash2" [size]="12"></lucide-angular>
+              Excluir
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <ng-template #emptyState>
+      <div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+        Nenhuma conta bancaria cadastrada.
+      </div>
+    </ng-template>
+  </section>
+</div>
