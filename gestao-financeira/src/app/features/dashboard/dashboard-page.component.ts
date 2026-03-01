@@ -251,7 +251,8 @@ export class DashboardPageComponent {
     > = {
       performance: 'Performance geral: consolida os principais indicadores e destaca melhor mes de economia e maior pico de gastos.',
       'quick-summary': 'Resumo rapido: mostra proximas contas e indicadores operacionais do periodo selecionado.',
-      comparison: 'Comparador de periodos: compara dois meses ou dois intervalos e mostra variacoes de entradas, gastos e economia.',
+      comparison:
+        'Comparador de periodos: todos os valores sao a variacao de Mes B menos Mes A. Entradas negativas significam que entrou menos no periodo B. Gastos negativos significam que voce gastou menos (melhora). A economia segue a formula: variacao de economia = variacao de entradas - variacao de gastos.',
       'monthly-series': 'Serie mensal: historico por mes com entradas, gastos e economia para leitura de tendencia.',
       reconciliation:
         'Conciliacao por conta: compara entradas e saidas da conta no periodo com o saldo de referencia informado para evidenciar diferencas e apoiar a investigacao.',
