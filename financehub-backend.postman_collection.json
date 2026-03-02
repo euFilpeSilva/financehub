@@ -1,0 +1,475 @@
+{
+  "info": {
+    "name": "FinanceHub Backend API",
+    "description": "Collection com todos os endpoints do backend FinanceHub.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Bills",
+      "item": [
+        {
+          "name": "List Bills",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/bills"
+          }
+        },
+        {
+          "name": "Create Bill",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Conta de energia\",\n  \"category\": \"Utilidades\",\n  \"amount\": 180.5,\n  \"dueDate\": \"2026-03-10\",\n  \"recurring\": false,\n  \"paid\": false,\n  \"internalTransfer\": false,\n  \"bankAccountId\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/bills"
+          }
+        },
+        {
+          "name": "Update Bill",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Conta de energia (ajustada)\",\n  \"category\": \"Utilidades\",\n  \"amount\": 190.0,\n  \"dueDate\": \"2026-03-10\",\n  \"recurring\": false,\n  \"paid\": true,\n  \"internalTransfer\": false,\n  \"bankAccountId\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/bills/{{billId}}"
+          }
+        },
+        {
+          "name": "Delete Bill",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/bills/{{billId}}"
+          }
+        },
+        {
+          "name": "Create Recurring Bills",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bills/recurring?month={{selectedMonth}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bills", "recurring"],
+              "query": [{ "key": "month", "value": "{{selectedMonth}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Incomes",
+      "item": [
+        {
+          "name": "List Incomes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/incomes"
+          }
+        },
+        {
+          "name": "Create Income",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"Salario\",\n  \"category\": \"Trabalho\",\n  \"amount\": 6500.0,\n  \"receivedAt\": \"2026-03-05\",\n  \"recurring\": true,\n  \"internalTransfer\": false,\n  \"bankAccountId\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/incomes"
+          }
+        },
+        {
+          "name": "Update Income",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"Salario\",\n  \"category\": \"Trabalho\",\n  \"amount\": 6800.0,\n  \"receivedAt\": \"2026-03-05\",\n  \"recurring\": true,\n  \"internalTransfer\": false,\n  \"bankAccountId\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/incomes/{{incomeId}}"
+          }
+        },
+        {
+          "name": "Delete Income",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/incomes/{{incomeId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Planning Goals",
+      "item": [
+        {
+          "name": "List Planning Goals",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/planning-goals"
+          }
+        },
+        {
+          "name": "Create Planning Goal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Reserva de emergencia\",\n  \"targetAmount\": 15000,\n  \"currentAmount\": 2500,\n  \"targetDate\": \"2026-12-31\",\n  \"notes\": \"Meta anual\",\n  \"complete\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/planning-goals"
+          }
+        },
+        {
+          "name": "Update Planning Goal",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Reserva de emergencia\",\n  \"targetAmount\": 15000,\n  \"currentAmount\": 8000,\n  \"targetDate\": \"2026-12-31\",\n  \"notes\": \"Meta anual\",\n  \"complete\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/planning-goals/{{planningGoalId}}"
+          }
+        },
+        {
+          "name": "Delete Planning Goal",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/planning-goals/{{planningGoalId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Spending Goals",
+      "item": [
+        {
+          "name": "List Spending Goals",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/spending-goals"
+          }
+        },
+        {
+          "name": "List Spending Goal Statuses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/spending-goals/statuses?selectedMonth={{selectedMonth}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "spending-goals", "statuses"],
+              "query": [{ "key": "selectedMonth", "value": "{{selectedMonth}}" }]
+            }
+          }
+        },
+        {
+          "name": "Create Spending Goal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Limite Alimentacao\",\n  \"limitAmount\": 1200,\n  \"category\": \"Alimentacao\",\n  \"schedule\": \"monthly\",\n  \"startMonth\": \"{{selectedMonth}}\",\n  \"startDate\": null,\n  \"endDate\": null,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/spending-goals"
+          }
+        },
+        {
+          "name": "Update Spending Goal",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Limite Alimentacao\",\n  \"limitAmount\": 1300,\n  \"category\": \"Alimentacao\",\n  \"schedule\": \"monthly\",\n  \"startMonth\": \"{{selectedMonth}}\",\n  \"startDate\": null,\n  \"endDate\": null,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/spending-goals/{{spendingGoalId}}"
+          }
+        },
+        {
+          "name": "Delete Spending Goal",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/spending-goals/{{spendingGoalId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bank Accounts",
+      "item": [
+        {
+          "name": "List Bank Accounts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/bank-accounts"
+          }
+        },
+        {
+          "name": "Create Bank Account",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Nubank Conta\",\n  \"bankId\": \"260\",\n  \"branchId\": \"0001\",\n  \"accountId\": \"123456-7\",\n  \"primaryIncome\": true,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/bank-accounts"
+          }
+        },
+        {
+          "name": "Update Bank Account",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Nubank Conta Principal\",\n  \"bankId\": \"260\",\n  \"branchId\": \"0001\",\n  \"accountId\": \"123456-7\",\n  \"primaryIncome\": true,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/bank-accounts/{{bankAccountId}}"
+          }
+        },
+        {
+          "name": "Delete Bank Account",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/bank-accounts/{{bankAccountId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard-summary?startDate={{startDate}}&endDate={{endDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "dashboard-summary"],
+              "query": [
+                { "key": "startDate", "value": "{{startDate}}" },
+                { "key": "endDate", "value": "{{endDate}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Account Reconciliation",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/account-reconciliation?bankAccountId={{bankAccountId}}&startDate={{startDate}}&endDate={{endDate}}&referenceBalance={{referenceBalance}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "account-reconciliation"],
+              "query": [
+                { "key": "bankAccountId", "value": "{{bankAccountId}}" },
+                { "key": "startDate", "value": "{{startDate}}" },
+                { "key": "endDate", "value": "{{endDate}}" },
+                { "key": "referenceBalance", "value": "{{referenceBalance}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Governance",
+      "item": [
+        {
+          "name": "List Audit Events",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/governance/audit-events"
+          }
+        },
+        {
+          "name": "List Trash Items",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/governance/trash-items"
+          }
+        },
+        {
+          "name": "Restore Trash Item",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/governance/trash-items/{{trashId}}/restore"
+          }
+        },
+        {
+          "name": "Purge Trash Item",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/governance/trash-items/{{trashId}}"
+          }
+        },
+        {
+          "name": "Get Retention Settings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/governance/retention-settings"
+          }
+        },
+        {
+          "name": "Update Retention Settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trashRetentionDays\": 30,\n  \"auditRetentionDays\": 180\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/governance/retention-settings"
+          }
+        },
+        {
+          "name": "Get App Preferences",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/governance/app-preferences"
+          }
+        },
+        {
+          "name": "Update App Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"defaultBillCategory\": \"Moradia\",\n  \"defaultBillRecurring\": false,\n  \"defaultBillDueDay\": 5,\n  \"defaultIncomeCategory\": \"Trabalho\",\n  \"defaultIncomeRecurring\": false,\n  \"defaultIncomeReceivedDay\": 1,\n  \"defaultDashboardMode\": \"month\",\n  \"defaultDashboardMonthComparisonOffset\": 1,\n  \"billCategories\": [\"Moradia\", \"Alimentacao\", \"Utilidades\", \"Saude\", \"Transporte\", \"Educacao\", \"Lazer\", \"Outros\"],\n  \"incomeCategories\": [\"Trabalho\", \"Extra\", \"Investimentos\", \"Reembolso\", \"Outros\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/governance/app-preferences"
+          }
+        },
+        {
+          "name": "Run Retention Cleanup",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/governance/retention-cleanup"
+          }
+        },
+        {
+          "name": "Emergency Reset All Data",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/governance/emergency-reset"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statements",
+      "item": [
+        {
+          "name": "Import OFX",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "ownerName", "type": "text", "value": "{{ownerName}}" },
+                { "key": "ownerCpf", "type": "text", "value": "{{ownerCpf}}" },
+                { "key": "applyInternalTransferDetection", "type": "text", "value": "true" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/statements/import/ofx"
+          }
+        },
+        {
+          "name": "Export OFX",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/statements/export/ofx?startDate={{startDate}}&endDate={{endDate}}&bankOrg=Finance%20Hub&fid=999&bankId=9999&branchId=0001&accountId=000000-0&currency=BRL",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "statements", "export", "ofx"],
+              "query": [
+                { "key": "startDate", "value": "{{startDate}}" },
+                { "key": "endDate", "value": "{{endDate}}" },
+                { "key": "bankOrg", "value": "Finance Hub" },
+                { "key": "fid", "value": "999" },
+                { "key": "bankId", "value": "9999" },
+                { "key": "branchId", "value": "0001" },
+                { "key": "accountId", "value": "000000-0" },
+                { "key": "currency", "value": "BRL" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transfers",
+      "item": [
+        {
+          "name": "Link Internal Transfer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billId\": \"{{billId}}\",\n  \"incomeId\": \"{{incomeId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/transfers/internal/link"
+          }
+        },
+        {
+          "name": "Detect Internal Transfers",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerName\": \"{{ownerName}}\",\n  \"ownerCpf\": \"{{ownerCpf}}\",\n  \"dateToleranceDays\": 1,\n  \"autoApply\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/transfers/internal/detect"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actuator",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/actuator/health"
+          }
+        },
+        {
+          "name": "Info",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/actuator/info"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "selectedMonth", "value": "2026-03" },
+    { "key": "startDate", "value": "2026-03-01" },
+    { "key": "endDate", "value": "2026-03-31" },
+    { "key": "referenceBalance", "value": "0" },
+    { "key": "ownerName", "value": "FILIPE SOUSA DA SILVA" },
+    { "key": "ownerCpf", "value": "05287907141" },
+    { "key": "billId", "value": "" },
+    { "key": "incomeId", "value": "" },
+    { "key": "planningGoalId", "value": "" },
+    { "key": "spendingGoalId", "value": "" },
+    { "key": "bankAccountId", "value": "" },
+    { "key": "trashId", "value": "" }
+  ]
+}
