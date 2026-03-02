@@ -174,7 +174,7 @@ public class OfxImportService {
     }
 
     int markedInternalTransfers = 0;
-    if (applyInternalTransferDetection && ownerName != null && !ownerName.isBlank()) {
+    if (applyInternalTransferDetection && hasTransferDetectionEvidence(ownerName, ownerCpf)) {
       List<?> suggestions = internalTransferService.detectInternalTransfers(ownerName, ownerCpf, 1, true);
       markedInternalTransfers = suggestions.size();
     }
@@ -341,6 +341,12 @@ public class OfxImportService {
       .replaceAll("[^A-Z0-9 ]", " ")
       .replaceAll("\\s{2,}", " ")
       .trim();
+  }
+
+  private boolean hasTransferDetectionEvidence(String ownerName, String ownerCpf) {
+    boolean hasName = ownerName != null && !ownerName.isBlank();
+    boolean hasCpf = ownerCpf != null && !ownerCpf.replaceAll("\\D", "").isBlank();
+    return hasName || hasCpf;
   }
 
   private String buildBillKey(LocalDate dueDate, double amount, String description) {

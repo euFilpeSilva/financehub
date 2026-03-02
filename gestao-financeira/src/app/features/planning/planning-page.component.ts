@@ -111,7 +111,7 @@ export class PlanningPageComponent {
         currentAmount,
         targetDate: value.targetDate,
         notes: value.notes.trim(),
-        complete: currentAmount >= value.targetAmount
+        complete: current.complete
       });
     } else {
       const confirmed = await this.confirmDialog.confirm({

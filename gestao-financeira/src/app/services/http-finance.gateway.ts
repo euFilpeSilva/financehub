@@ -3,6 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import {
+  resolveDefaultCategory,
+  safeBillCategories,
+  safeIncomeCategories
+} from './finance-preferences.utils';
+import {
   AccountReconciliation,
   AppPreferences,
   AuditEvent,
@@ -14,6 +19,7 @@ import {
   OfxImportResult,
   PlanningGoal,
   SpendingGoal,
+  SpendingGoalStatus,
   TrashItem
 } from '../models/finance.models';
 import { FinanceGateway } from './finance.gateway';
@@ -74,6 +80,15 @@ type SpendingGoalApi = {
   active: boolean;
 };
 
+type SpendingGoalStatusApi = {
+  goal: SpendingGoalApi;
+  spentAmount: number;
+  remainingAmount: number;
+  usagePercent: number;
+  onTrack: boolean;
+  periodLabel: string;
+};
+
 type TrashApi = {
   id: string;
   entityType: TrashItem['entityType'];
@@ -97,9 +112,6 @@ type AuditApi = {
   amount?: number;
   timestamp: string;
 };
-
-const DEFAULT_BILL_CATEGORIES = ['Moradia', 'Alimentacao', 'Utilidades', 'Saude', 'Transporte', 'Educacao', 'Lazer', 'Outros'];
-const DEFAULT_INCOME_CATEGORIES = ['Trabalho', 'Extra', 'Investimentos', 'Reembolso', 'Outros'];
 
 @Injectable()
 export class HttpFinanceGateway implements FinanceGateway {
@@ -135,6 +147,14 @@ export class HttpFinanceGateway implements FinanceGateway {
 
   deleteBill(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/bills/${id}`);
+  }
+
+  createRecurringBills(month: string): Observable<BillRecord[]> {
+    return this.http.post<BillApi[]>(`${this.baseUrl}/bills/recurring`, null, {
+      params: { month }
+    }).pipe(
+      map((items) => items.map((item) => ({ ...item, internalTransfer: Boolean(item.internalTransfer) })))
+    );
   }
 
   listIncomes(): Observable<IncomeEntry[]> {
@@ -214,6 +234,12 @@ export class HttpFinanceGateway implements FinanceGateway {
 
   listSpendingGoals(): Observable<SpendingGoal[]> {
     return this.http.get<SpendingGoalApi[]>(`${this.baseUrl}/spending-goals`);
+  }
+
+  listSpendingGoalStatuses(selectedMonth: string): Observable<SpendingGoalStatus[]> {
+    return this.http.get<SpendingGoalStatusApi[]>(`${this.baseUrl}/spending-goals/statuses`, {
+      params: { selectedMonth }
+    });
   }
 
   createSpendingGoal(payload: Omit<SpendingGoal, 'id'>): Observable<SpendingGoal> {
@@ -335,13 +361,13 @@ export class HttpFinanceGateway implements FinanceGateway {
   }
 
   private normalizeAppPreferences(payload: Partial<AppPreferences>): AppPreferences {
-    const billCategories = this.normalizeCategories(payload.billCategories, DEFAULT_BILL_CATEGORIES);
-    const incomeCategories = this.normalizeCategories(payload.incomeCategories, DEFAULT_INCOME_CATEGORIES);
+    const billCategories = safeBillCategories(payload);
+    const incomeCategories = safeIncomeCategories(payload);
     return {
-      defaultBillCategory: this.resolveDefaultCategory(payload.defaultBillCategory, billCategories),
+      defaultBillCategory: resolveDefaultCategory(payload.defaultBillCategory, billCategories),
       defaultBillRecurring: Boolean(payload.defaultBillRecurring),
       defaultBillDueDay: this.clampNumber(payload.defaultBillDueDay, 1, 31, 5),
-      defaultIncomeCategory: this.resolveDefaultCategory(payload.defaultIncomeCategory, incomeCategories),
+      defaultIncomeCategory: resolveDefaultCategory(payload.defaultIncomeCategory, incomeCategories),
       defaultIncomeRecurring: Boolean(payload.defaultIncomeRecurring),
       defaultIncomeReceivedDay: this.clampNumber(payload.defaultIncomeReceivedDay, 1, 31, 1),
       defaultDashboardMode: payload.defaultDashboardMode === 'range' ? 'range' : 'month',
@@ -349,30 +375,6 @@ export class HttpFinanceGateway implements FinanceGateway {
       billCategories,
       incomeCategories
     };
-  }
-
-  private normalizeCategories(values: string[] | undefined, fallback: string[]): string[] {
-    if (!Array.isArray(values) || !values.length) {
-      return [...fallback];
-    }
-    const unique = new Map<string, string>();
-    for (const raw of values) {
-      const value = raw?.trim();
-      if (!value || value.length > 120) {
-        continue;
-      }
-      const key = value.toLowerCase();
-      if (!unique.has(key)) {
-        unique.set(key, value);
-      }
-    }
-    return unique.size ? Array.from(unique.values()) : [...fallback];
-  }
-
-  private resolveDefaultCategory(value: string | undefined, categories: string[]): string {
-    const key = value?.trim()?.toLowerCase();
-    const match = categories.find((item) => item.toLowerCase() === key);
-    return match ?? categories[0];
   }
 
   private clampNumber(value: number | undefined, min: number, max: number, fallback: number): number {

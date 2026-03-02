@@ -2,6 +2,7 @@ package com.financehub.backend.modules.spending.api;
 
 import com.financehub.backend.modules.spending.api.dto.SpendingGoalRequest;
 import com.financehub.backend.modules.spending.api.dto.SpendingGoalResponse;
+import com.financehub.backend.modules.spending.api.dto.SpendingGoalStatusResponse;
 import com.financehub.backend.modules.spending.application.SpendingGoalService;
 import com.financehub.backend.modules.spending.domain.SpendingGoal;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,6 +29,11 @@ public class SpendingGoalController {
   @GetMapping
   public List<SpendingGoalResponse> list() {
     return service.listAll().stream().map(this::toResponse).toList();
+  }
+
+  @GetMapping("/statuses")
+  public List<SpendingGoalStatusResponse> listStatuses(@RequestParam String selectedMonth) {
+    return service.listStatusesByMonth(selectedMonth);
   }
 
   @PostMapping

@@ -12,6 +12,7 @@ import {
   OfxImportResult,
   PlanningGoal,
   SpendingGoal,
+  SpendingGoalStatus,
   TrashItem
 } from '../models/finance.models';
 
@@ -20,6 +21,7 @@ export interface FinanceGateway {
   createBill(payload: Omit<BillRecord, 'id'>): Observable<BillRecord>;
   updateBill(payload: BillRecord): Observable<BillRecord>;
   deleteBill(id: string): Observable<void>;
+  createRecurringBills(month: string): Observable<BillRecord[]>;
 
   listIncomes(): Observable<IncomeEntry[]>;
   createIncome(payload: Omit<IncomeEntry, 'id'>): Observable<IncomeEntry>;
@@ -37,6 +39,7 @@ export interface FinanceGateway {
   deleteBankAccount(id: string): Observable<void>;
 
   listSpendingGoals(): Observable<SpendingGoal[]>;
+  listSpendingGoalStatuses(selectedMonth: string): Observable<SpendingGoalStatus[]>;
   createSpendingGoal(payload: Omit<SpendingGoal, 'id'>): Observable<SpendingGoal>;
   updateSpendingGoal(payload: SpendingGoal): Observable<SpendingGoal>;
   deleteSpendingGoal(id: string): Observable<void>;

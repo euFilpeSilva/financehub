@@ -6,6 +6,7 @@ import com.financehub.backend.modules.bills.domain.BillRepository;
 import com.financehub.backend.modules.governance.application.TrashService;
 import com.financehub.backend.shared.api.NotFoundException;
 import com.financehub.backend.shared.application.port.AuditPort;
+import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -66,6 +67,56 @@ public class BillService {
     trashService.moveToTrash("bill", bill.getId(), bill.getDescription(), bill);
     repository.deleteById(id);
     auditPort.record("bill", bill.getId(), "delete", bill.getDescription() + " movida para lixeira", bill.getAmount());
+  }
+
+  public List<Bill> createRecurringForMonth(String month) {
+    YearMonth targetMonth;
+    try {
+      targetMonth = YearMonth.parse(month);
+    } catch (Exception ex) {
+      throw new IllegalArgumentException("Mes invalido. Use o formato yyyy-MM.");
+    }
+
+    List<Bill> current = repository.findAll();
+    List<Bill> recurringTemplates = current.stream()
+      .filter(Bill::isRecurring)
+      .toList();
+
+    List<Bill> created = recurringTemplates.stream()
+      .filter(template -> !existsInMonth(current, targetMonth, template))
+      .map(template -> new Bill(
+        UUID.randomUUID().toString(),
+        template.getDescription(),
+        template.getCategory(),
+        template.getAmount(),
+        createSafeDate(targetMonth, template.getDueDate().getDayOfMonth()),
+        true,
+        false,
+        false,
+        null
+      ))
+      .map(repository::save)
+      .toList();
+
+    if (!created.isEmpty()) {
+      auditPort.record("bill", targetMonth.toString(), "create", "Contas recorrentes geradas para " + targetMonth, null);
+    }
+
+    return created;
+  }
+
+  private boolean existsInMonth(List<Bill> bills, YearMonth month, Bill template) {
+    return bills.stream().anyMatch(item ->
+      item.getDueDate().getYear() == month.getYear()
+        && item.getDueDate().getMonthValue() == month.getMonthValue()
+        && item.getDescription().equalsIgnoreCase(template.getDescription())
+        && item.getCategory().equals(template.getCategory())
+    );
+  }
+
+  private java.time.LocalDate createSafeDate(YearMonth month, int day) {
+    int safeDay = Math.max(1, Math.min(day, month.lengthOfMonth()));
+    return month.atDay(safeDay);
   }
 
   private String normalizeOptionalId(String value) {

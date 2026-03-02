@@ -37,7 +37,7 @@ public class PlanningGoalService {
       request.currentAmount(),
       request.targetDate(),
       request.notes() == null ? "" : request.notes().trim(),
-      request.complete()
+      isComplete(request.currentAmount(), request.targetAmount())
     );
     repository.save(goal);
     auditPort.record("planning-goal", goal.getId(), "create", goal.getTitle() + " criada", goal.getTargetAmount());
@@ -51,10 +51,14 @@ public class PlanningGoalService {
     goal.setCurrentAmount(request.currentAmount());
     goal.setTargetDate(request.targetDate());
     goal.setNotes(request.notes() == null ? "" : request.notes().trim());
-    goal.setComplete(request.complete());
+    goal.setComplete(isComplete(request.currentAmount(), request.targetAmount()));
     repository.save(goal);
     auditPort.record("planning-goal", goal.getId(), "update", goal.getTitle() + " atualizada", goal.getTargetAmount());
     return goal;
+  }
+
+  private boolean isComplete(double currentAmount, double targetAmount) {
+    return currentAmount >= targetAmount;
   }
 
   public void delete(String id) {

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -41,6 +42,11 @@ public class BillController {
   @DeleteMapping("/{id}")
   public void delete(@PathVariable String id) {
     service.delete(id);
+  }
+
+  @PostMapping("/recurring")
+  public List<BillResponse> createRecurring(@RequestParam String month) {
+    return service.createRecurringForMonth(month).stream().map(this::toResponse).toList();
   }
 
   private BillResponse toResponse(com.financehub.backend.modules.bills.domain.Bill bill) {
