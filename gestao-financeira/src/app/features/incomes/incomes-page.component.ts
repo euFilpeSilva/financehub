@@ -108,6 +108,10 @@ export class IncomesPageComponent {
       return compare * direction;
     });
   });
+  protected readonly filteredIncomesCount = computed(() => this.filteredIncomes().length);
+  protected readonly filteredIncomesTotalAmount = computed(() =>
+    this.filteredIncomes().reduce((sum, income) => sum + income.amount, 0)
+  );
 
   constructor(protected readonly facade: FinanceFacade) {
     effect(() => {

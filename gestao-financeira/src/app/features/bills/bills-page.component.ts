@@ -108,6 +108,10 @@ export class BillsPageComponent {
       return compare * direction;
     });
   });
+  protected readonly filteredBillsCount = computed(() => this.filteredBills().length);
+  protected readonly filteredBillsTotalAmount = computed(() =>
+    this.filteredBills().reduce((sum, bill) => sum + bill.amount, 0)
+  );
 
   protected readonly sortBy = signal<'description' | 'category' | 'dueDate' | 'amount' | 'status' | 'recurring'>('dueDate');
   protected readonly sortDirection = signal<'asc' | 'desc'>('asc');

@@ -8,8 +8,15 @@
           <p class="mt-1 text-sm text-slate-600">Analise de meses com melhor resultado e picos de gasto.</p>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" (click)="explainDashboardCard('performance')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de performance geral">
+          <button
+            type="button"
+            class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="Explicar card de performance geral"
+          >
             <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+              Performance geral: consolida indicadores e destaca melhor economia e maior pico de gastos.
+            </span>
           </button>
           <lucide-angular [img]="LineChart" [size]="20" class="text-brand-600"></lucide-angular>
         </div>
@@ -44,8 +51,15 @@
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold text-slate-900">Resumo rapido</h2>
         <div class="flex items-center gap-2">
-          <button type="button" (click)="explainDashboardCard('quick-summary')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de resumo rapido">
+          <button
+            type="button"
+            class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="Explicar card de resumo rapido"
+          >
             <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+              Resumo rapido: proximas contas e indicadores operacionais do periodo.
+            </span>
           </button>
           <lucide-angular [img]="CalendarClock" [size]="18" class="text-brand-600"></lucide-angular>
         </div>
@@ -94,8 +108,15 @@
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold text-slate-900">Comparador de periodos</h2>
         <div class="flex items-center gap-2">
-          <button type="button" (click)="explainDashboardCard('comparison')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de comparador de periodos">
+          <button
+            type="button"
+            class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="Explicar card de comparador de periodos"
+          >
             <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-72 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-left text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+              Como ler: o sistema calcula sempre Mes B - Mes A. Entradas negativas = entrou menos no Mes B. Gastos negativos = gastou menos no Mes B (melhora). Economia mostra a diferenca do saldo final entre os dois periodos.
+            </span>
           </button>
           <lucide-angular [img]="CalendarRange" [size]="20" class="text-brand-600"></lucide-angular>
         </div>
@@ -186,8 +207,15 @@
     <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold text-slate-900">Serie mensal</h2>
-        <button type="button" (click)="explainDashboardCard('monthly-series')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de serie mensal">
+        <button
+          type="button"
+          class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+          aria-label="Explicar card de serie mensal"
+        >
           <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+          <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+            Serie mensal: historico por mes com entradas, gastos e economia.
+          </span>
         </button>
       </div>
       <div class="max-h-[360px] overflow-auto rounded-2xl border border-slate-100">
@@ -220,8 +248,15 @@
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold text-slate-900">Conciliacao por conta</h2>
         <div class="flex items-center gap-2">
-          <button type="button" (click)="explainDashboardCard('reconciliation')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de conciliacao por conta">
+          <button
+            type="button"
+            class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="Explicar card de conciliacao por conta"
+          >
             <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+              Compara entradas e saidas da conta com saldo de referencia.
+            </span>
           </button>
           <lucide-angular [img]="Settings2" [size]="20" class="text-brand-600"></lucide-angular>
         </div>
@@ -285,8 +320,15 @@
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold text-slate-900">Metas de gasto</h2>
         <div class="flex items-center gap-2">
-          <button type="button" (click)="explainDashboardCard('spending-goals')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de metas de gasto">
+          <button
+            type="button"
+            class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="Explicar card de metas de gasto"
+          >
             <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+            <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+              Cria e gerencia limites de gasto por categoria e periodo.
+            </span>
           </button>
           <lucide-angular [img]="Settings2" [size]="20" class="text-brand-600"></lucide-angular>
         </div>
@@ -350,8 +392,15 @@
     <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold text-slate-900">Acompanhamento das metas</h2>
-        <button type="button" (click)="explainDashboardCard('goals-tracking')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de acompanhamento das metas">
+        <button
+          type="button"
+          class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+          aria-label="Explicar card de acompanhamento das metas"
+        >
           <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+          <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+            Mostra consumo versus limite e status de cada meta.
+          </span>
         </button>
       </div>
       <div class="space-y-3">

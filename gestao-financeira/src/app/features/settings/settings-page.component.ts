@@ -110,6 +110,19 @@ export class SettingsPageComponent {
     await this.persistPreferences(false);
   }
 
+  protected isPreferenceFieldInvalid(
+    field:
+      | 'defaultBillCategory'
+      | 'defaultBillDueDay'
+      | 'defaultIncomeCategory'
+      | 'defaultIncomeReceivedDay'
+      | 'defaultDashboardMode'
+      | 'defaultDashboardMonthComparisonOffset'
+  ): boolean {
+    const control = this.preferencesForm.controls[field];
+    return control.invalid && (control.touched || control.dirty);
+  }
+
   protected async emergencyResetAllData(): Promise<void> {
     const confirmed = await this.confirmDialog.confirm({
       title: 'Zerar base de dados',
@@ -127,9 +140,7 @@ export class SettingsPageComponent {
 
   private async persistPreferences(requireConfirmation: boolean): Promise<void> {
     if (this.preferencesForm.invalid) {
-      if (requireConfirmation) {
-        this.preferencesForm.markAllAsTouched();
-      }
+      this.preferencesForm.markAllAsTouched();
       this.toast.error('Corrija os campos de padroes antes de salvar categorias.');
       return;
     }

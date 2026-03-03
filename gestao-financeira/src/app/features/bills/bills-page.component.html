@@ -111,6 +111,17 @@
     </div>
   </app-filter-panel>
 
+  <div class="mb-4 grid gap-3 sm:grid-cols-2">
+    <div class="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Registros filtrados</p>
+      <p class="mt-1 text-sm font-semibold text-slate-900">{{ filteredBillsCount() }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Total filtrado</p>
+      <p class="mt-1 text-sm font-semibold text-slate-900">{{ filteredBillsTotalAmount() | currency:'BRL':'symbol':'1.2-2' }}</p>
+    </div>
+  </div>
+
   <div *ngIf="viewMode() === 'list'" class="max-h-[560px] overflow-auto rounded-2xl border border-slate-100">
     <table class="min-w-full divide-y divide-slate-100 text-sm">
       <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">

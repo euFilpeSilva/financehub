@@ -5,8 +5,15 @@
         <lucide-angular [img]="ArrowUpCircle" [size]="15"></lucide-angular>
         Entradas
       </p>
-      <button type="button" (click)="explainCard('incomes')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de entradas">
+      <button
+        type="button"
+        class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+        aria-label="Explicar card de entradas"
+      >
         <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+        <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+          Entradas: soma de todas as receitas do periodo selecionado.
+        </span>
       </button>
     </div>
     <strong class="block break-words text-lg leading-tight text-slate-900 xl:text-xl 2xl:text-2xl">{{ facade.incomeTotal() | currency:'BRL':'symbol':'1.2-2' }}</strong>
@@ -19,8 +26,15 @@
         <lucide-angular [img]="ArrowDownCircle" [size]="15"></lucide-angular>
         Contas
       </p>
-      <button type="button" (click)="explainCard('expenses')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de contas">
+      <button
+        type="button"
+        class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+        aria-label="Explicar card de contas"
+      >
         <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+        <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+          Contas: soma das contas pagas e pendentes no periodo.
+        </span>
       </button>
     </div>
     <strong class="block break-words text-lg leading-tight text-slate-900 xl:text-xl 2xl:text-2xl">{{ facade.expenseTotal() | currency:'BRL':'symbol':'1.2-2' }}</strong>
@@ -33,8 +47,15 @@
         <lucide-angular [img]="WalletCards" [size]="15"></lucide-angular>
         Saldo
       </p>
-      <button type="button" (click)="explainCard('balance')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de saldo">
+      <button
+        type="button"
+        class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+        aria-label="Explicar card de saldo"
+      >
         <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+        <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+          Saldo: resultado de entradas menos contas no periodo.
+        </span>
       </button>
     </div>
     <strong class="block break-words text-lg leading-tight xl:text-xl 2xl:text-2xl" [ngClass]="facade.balance() >= 0 ? 'text-brand-700' : 'text-rose-600'">
@@ -49,8 +70,15 @@
         <lucide-angular [img]="Goal" [size]="15"></lucide-angular>
         Planejamento
       </p>
-      <button type="button" (click)="explainCard('planning')" class="inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100" aria-label="Explicar card de planejamento">
+      <button
+        type="button"
+        class="group relative inline-flex items-center justify-center rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100"
+        aria-label="Explicar card de planejamento"
+      >
         <lucide-angular [img]="CircleHelp" [size]="14"></lucide-angular>
+        <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[11px] font-medium leading-tight text-slate-700 shadow-card group-hover:block group-focus-visible:block">
+          Planejamento: media do progresso percentual das metas.
+        </span>
       </button>
     </div>
     <strong class="block break-words text-lg leading-tight text-slate-900 xl:text-xl 2xl:text-2xl">{{ goalCompletionRatio | percent:'1.0-0' }}</strong>

@@ -242,26 +242,6 @@ export class DashboardPageComponent {
     this.facade.deleteSpendingGoal(goal.id);
   }
 
-  protected explainDashboardCard(
-    card: 'performance' | 'quick-summary' | 'comparison' | 'monthly-series' | 'reconciliation' | 'spending-goals' | 'goals-tracking'
-  ): void {
-    const messages: Record<
-      'performance' | 'quick-summary' | 'comparison' | 'monthly-series' | 'reconciliation' | 'spending-goals' | 'goals-tracking',
-      string
-    > = {
-      performance: 'Performance geral: consolida os principais indicadores e destaca melhor mes de economia e maior pico de gastos.',
-      'quick-summary': 'Resumo rapido: mostra proximas contas e indicadores operacionais do periodo selecionado.',
-      comparison:
-        'Comparador de periodos: todos os valores sao a variacao de Mes B menos Mes A. Entradas negativas significam que entrou menos no periodo B. Gastos negativos significam que voce gastou menos (melhora). A economia segue a formula: variacao de economia = variacao de entradas - variacao de gastos.',
-      'monthly-series': 'Serie mensal: historico por mes com entradas, gastos e economia para leitura de tendencia.',
-      reconciliation:
-        'Conciliacao por conta: compara entradas e saidas da conta no periodo com o saldo de referencia informado para evidenciar diferencas e apoiar a investigacao.',
-      'spending-goals': 'Metas de gasto: cria e gerencia limites de gasto por categoria, periodicidade e status.',
-      'goals-tracking': 'Acompanhamento das metas: mostra consumo versus limite e se cada meta esta dentro ou acima do planejado.'
-    };
-    this.toast.info(messages[card]);
-  }
-
   protected runReconciliation(): void {
     const value = this.reconciliationForm.getRawValue();
     if (!value.bankAccountId) {

@@ -88,14 +88,25 @@
 
       <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Categoria padrao de saida
-        <select formControlName="defaultBillCategory" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <select
+          formControlName="defaultBillCategory"
+          class="rounded-xl border px-3 py-2 text-sm"
+          [ngClass]="isPreferenceFieldInvalid('defaultBillCategory') ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-200'"
+        >
           <option *ngFor="let category of billCategories" [value]="category">{{ category }}</option>
         </select>
       </label>
 
       <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Dia padrao de vencimento
-        <input type="number" min="1" max="31" formControlName="defaultBillDueDay" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <input
+          type="number"
+          min="1"
+          max="31"
+          formControlName="defaultBillDueDay"
+          class="rounded-xl border px-3 py-2 text-sm"
+          [ngClass]="isPreferenceFieldInvalid('defaultBillDueDay') ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-200'"
+        />
       </label>
 
       <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -159,14 +170,25 @@
 
       <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Categoria padrao de entrada
-        <select formControlName="defaultIncomeCategory" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <select
+          formControlName="defaultIncomeCategory"
+          class="rounded-xl border px-3 py-2 text-sm"
+          [ngClass]="isPreferenceFieldInvalid('defaultIncomeCategory') ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-200'"
+        >
           <option *ngFor="let category of incomeCategories" [value]="category">{{ category }}</option>
         </select>
       </label>
 
       <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Dia padrao de recebimento
-        <input type="number" min="1" max="31" formControlName="defaultIncomeReceivedDay" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <input
+          type="number"
+          min="1"
+          max="31"
+          formControlName="defaultIncomeReceivedDay"
+          class="rounded-xl border px-3 py-2 text-sm"
+          [ngClass]="isPreferenceFieldInvalid('defaultIncomeReceivedDay') ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-200'"
+        />
       </label>
 
       <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -178,7 +200,11 @@
 
       <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Modo padrao do dashboard
-        <select formControlName="defaultDashboardMode" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <select
+          formControlName="defaultDashboardMode"
+          class="rounded-xl border px-3 py-2 text-sm"
+          [ngClass]="isPreferenceFieldInvalid('defaultDashboardMode') ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-200'"
+        >
           <option value="month">Mes x mes</option>
           <option value="range">Intervalo customizado</option>
         </select>
@@ -186,7 +212,14 @@
 
       <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Distancia padrao entre meses (dashboard)
-        <input type="number" min="1" max="12" formControlName="defaultDashboardMonthComparisonOffset" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <input
+          type="number"
+          min="1"
+          max="12"
+          formControlName="defaultDashboardMonthComparisonOffset"
+          class="rounded-xl border px-3 py-2 text-sm"
+          [ngClass]="isPreferenceFieldInvalid('defaultDashboardMonthComparisonOffset') ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-200'"
+        />
       </label>
 
       <button type="submit" class="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white">
