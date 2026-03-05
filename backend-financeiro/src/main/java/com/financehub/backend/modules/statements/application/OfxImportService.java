@@ -173,6 +173,28 @@ public class OfxImportService {
       }
     }
 
+    for (OfxTransaction tx : extractBalanceIncomeBlocks(content)) {
+      total += 1;
+      boolean internalTransfer = detectInternalByMemo(tx.memo(), ownerCpf, true);
+      double amount = tx.amount().doubleValue();
+      String key = buildIncomeKey(tx.postedAt(), amount, tx.memo());
+      if (existingIncomeKeys.contains(key)) {
+        skippedDuplicates += 1;
+        continue;
+      }
+      incomeService.create(new IncomeRequest(
+        tx.memo(),
+        IMPORTED_STATEMENT_CATEGORY,
+        amount,
+        tx.postedAt(),
+        false,
+        internalTransfer,
+        importedBankAccountId
+      ));
+      existingIncomeKeys.add(key);
+      createdIncomes += 1;
+    }
+
     int markedInternalTransfers = 0;
     if (applyInternalTransferDetection && hasTransferDetectionEvidence(ownerName, ownerCpf)) {
       List<?> suggestions = internalTransferService.detectInternalTransfers(ownerName, ownerCpf, 1, true);
@@ -393,6 +415,73 @@ public class OfxImportService {
       blocks.add(block);
     }
     return blocks;
+  }
+
+  private List<OfxTransaction> extractBalanceIncomeBlocks(String content) {
+    String[] chunks = content.split("(?i)<BAL>");
+    if (chunks.length <= 1) {
+      return List.of();
+    }
+
+    List<OfxTransaction> blocks = new java.util.ArrayList<>();
+    String fallbackDateRaw = extractTag(content, "DTASOF");
+    if (fallbackDateRaw == null || fallbackDateRaw.isBlank()) {
+      fallbackDateRaw = extractTag(content, "DTEND");
+    }
+
+    for (int i = 1; i < chunks.length; i += 1) {
+      String chunk = chunks[i];
+      int endIndex = indexOfIgnoreCase(chunk, "</BAL>");
+      String block = endIndex >= 0 ? chunk.substring(0, endIndex) : chunk;
+
+      String nameRaw = extractTag(block, "NAME");
+      String descRaw = extractTag(block, "DESC");
+      String valueRaw = extractTag(block, "VALUE");
+      if (valueRaw == null) {
+        continue;
+      }
+
+      String nameNormalized = normalizeText(nameRaw);
+      String descNormalized = normalizeText(descRaw);
+      boolean rendimento = nameNormalized.contains("RENDIMENTO") || descNormalized.contains("RENDIMENTO");
+      if (!rendimento) {
+        continue;
+      }
+
+      BigDecimal amount = parseAmount(valueRaw);
+      if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+        continue;
+      }
+
+      String balanceDateRaw = extractTag(block, "DTASOF");
+      if (balanceDateRaw == null || balanceDateRaw.isBlank()) {
+        balanceDateRaw = fallbackDateRaw;
+      }
+      LocalDate postedAt = parseDate(balanceDateRaw);
+      if (postedAt == null) {
+        continue;
+      }
+
+      String source = buildBalanceMemo(nameRaw, descRaw);
+      blocks.add(new OfxTransaction(postedAt, amount, source));
+    }
+
+    return blocks;
+  }
+
+  private String buildBalanceMemo(String nameRaw, String descRaw) {
+    String name = nameRaw == null ? "" : nameRaw.trim();
+    String desc = descRaw == null ? "" : descRaw.trim();
+    if (!name.isBlank() && !desc.isBlank()) {
+      return sanitizeMemo(name + " - " + desc);
+    }
+    if (!desc.isBlank()) {
+      return sanitizeMemo(desc);
+    }
+    if (!name.isBlank()) {
+      return sanitizeMemo(name);
+    }
+    return sanitizeMemo("Rendimento OFX");
   }
 
   private int indexOfIgnoreCase(String text, String needle) {
