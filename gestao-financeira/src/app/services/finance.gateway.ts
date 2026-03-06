@@ -63,7 +63,7 @@ export interface FinanceGateway {
     referenceBalance?: number
   ): Observable<AccountReconciliation>;
   runRetentionCleanup(): Observable<void>;
-  emergencyResetAllData(): Observable<void>;
+  emergencyResetAllData(keepBankAccounts: boolean): Observable<void>;
   importOfxStatementWithProgress(
     file: File,
     ownerName?: string,

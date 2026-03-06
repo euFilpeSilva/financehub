@@ -344,8 +344,10 @@ export class HttpFinanceGateway implements FinanceGateway {
     return this.http.post<void>(`${this.baseUrl}/governance/retention-cleanup`, {});
   }
 
-  emergencyResetAllData(): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/governance/emergency-reset`, {});
+  emergencyResetAllData(keepBankAccounts: boolean): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/governance/emergency-reset`, {
+      keepBankAccounts: Boolean(keepBankAccounts)
+    });
   }
 
   importOfxStatement(file: File, ownerName?: string, ownerCpf?: string): Observable<OfxImportResult> {

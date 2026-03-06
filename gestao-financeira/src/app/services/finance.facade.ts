@@ -613,9 +613,9 @@ export class FinanceFacade {
     );
   }
 
-  emergencyResetAllData(): void {
+  emergencyResetAllData(keepBankAccounts: boolean): void {
     this.execute(
-      this.gateway.emergencyResetAllData(),
+      this.gateway.emergencyResetAllData(keepBankAccounts),
       () => this.loadAll(),
       'Falha ao zerar os dados da base.',
       'Base de dados zerada com sucesso.'

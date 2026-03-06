@@ -10,6 +10,16 @@ export interface ConfirmDialogOptions {
   requiredTextLabel?: string;
 }
 
+export interface ConfirmDialogWithCheckboxOptions extends ConfirmDialogOptions {
+  checkboxLabel: string;
+  checkboxDefaultChecked?: boolean;
+}
+
+export interface ConfirmDialogCheckboxResult {
+  confirmed: boolean;
+  checkboxChecked: boolean;
+}
+
 interface ConfirmDialogState {
   open: boolean;
   title: string;
@@ -20,6 +30,8 @@ interface ConfirmDialogState {
   requiredText: string;
   requiredTextLabel: string;
   typedText: string;
+  checkboxLabel: string;
+  checkboxChecked: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -33,10 +45,13 @@ export class ConfirmDialogService {
     tone: 'default',
     requiredText: '',
     requiredTextLabel: '',
-    typedText: ''
+    typedText: '',
+    checkboxLabel: '',
+    checkboxChecked: false
   });
 
   private resolver: ((confirmed: boolean) => void) | null = null;
+  private checkboxResolver: ((result: ConfirmDialogCheckboxResult) => void) | null = null;
 
   readonly state = this.stateSource.asReadonly();
 
@@ -50,15 +65,42 @@ export class ConfirmDialogService {
       tone: options.tone ?? 'default',
       requiredText: options.requiredText?.trim() ?? '',
       requiredTextLabel: options.requiredTextLabel?.trim() ?? '',
-      typedText: ''
+      typedText: '',
+      checkboxLabel: '',
+      checkboxChecked: false
     });
     return new Promise<boolean>((resolve) => {
       this.resolver = resolve;
+      this.checkboxResolver = null;
+    });
+  }
+
+  confirmWithCheckbox(options: ConfirmDialogWithCheckboxOptions): Promise<ConfirmDialogCheckboxResult> {
+    this.stateSource.set({
+      open: true,
+      title: options.title,
+      message: options.message,
+      confirmLabel: options.confirmLabel ?? 'Confirmar',
+      cancelLabel: options.cancelLabel ?? 'Cancelar',
+      tone: options.tone ?? 'default',
+      requiredText: options.requiredText?.trim() ?? '',
+      requiredTextLabel: options.requiredTextLabel?.trim() ?? '',
+      typedText: '',
+      checkboxLabel: options.checkboxLabel.trim(),
+      checkboxChecked: Boolean(options.checkboxDefaultChecked)
+    });
+    return new Promise<ConfirmDialogCheckboxResult>((resolve) => {
+      this.checkboxResolver = resolve;
+      this.resolver = null;
     });
   }
 
   updateTypedText(value: string): void {
     this.stateSource.update((state) => ({ ...state, typedText: value }));
+  }
+
+  updateCheckbox(value: boolean): void {
+    this.stateSource.update((state) => ({ ...state, checkboxChecked: value }));
   }
 
   canConfirm(): boolean {
@@ -73,16 +115,25 @@ export class ConfirmDialogService {
     if (confirmed && !this.canConfirm()) {
       return;
     }
+    const checkboxChecked = this.stateSource().checkboxChecked;
+
     if (this.resolver) {
       this.resolver(confirmed);
       this.resolver = null;
     }
+    if (this.checkboxResolver) {
+      this.checkboxResolver({ confirmed, checkboxChecked });
+      this.checkboxResolver = null;
+    }
+
     this.stateSource.update((state) => ({
       ...state,
       open: false,
       requiredText: '',
       requiredTextLabel: '',
-      typedText: ''
+      typedText: '',
+      checkboxLabel: '',
+      checkboxChecked: false
     }));
   }
 }

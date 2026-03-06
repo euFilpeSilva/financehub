@@ -177,13 +177,15 @@ public class GovernanceService implements AuditPort {
   }
 
   @Transactional
-  public void emergencyResetAllData() {
+  public void emergencyResetAllData(boolean keepBankAccounts) {
     trashItemRepository.deleteAllInBatch();
     spendingGoalRepository.deleteAllInBatch();
     planningGoalRepository.deleteAllInBatch();
     incomeRepository.deleteAllInBatch();
     billRepository.deleteAllInBatch();
-    bankAccountRepository.deleteAllInBatch();
+    if (!keepBankAccounts) {
+      bankAccountRepository.deleteAllInBatch();
+    }
     appPreferencesRepository.deleteAllInBatch();
     retentionSettingsRepository.deleteAllInBatch();
     auditEventRepository.deleteAllInBatch();

@@ -28,6 +28,19 @@
         />
       </div>
 
+      <label
+        *ngIf="dialog.state().checkboxLabel"
+        class="mt-4 flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+      >
+        <input
+          type="checkbox"
+          [ngModel]="dialog.state().checkboxChecked"
+          (ngModelChange)="dialog.updateCheckbox($event)"
+          class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        <span class="text-sm text-slate-700">{{ dialog.state().checkboxLabel }}</span>
+      </label>
+
       <div class="mt-5 flex justify-end gap-2">
         <button
           type="button"

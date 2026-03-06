@@ -1,6 +1,7 @@
 package com.financehub.backend.modules.governance.api;
 
 import com.financehub.backend.modules.governance.api.dto.AppPreferencesRequest;
+import com.financehub.backend.modules.governance.api.dto.EmergencyResetRequest;
 import com.financehub.backend.modules.governance.api.dto.RetentionSettingsRequest;
 import com.financehub.backend.modules.governance.application.GovernanceService;
 import com.financehub.backend.modules.governance.application.TrashService;
@@ -76,7 +77,8 @@ public class GovernanceController {
   }
 
   @PostMapping("/emergency-reset")
-  public void emergencyResetAllData() {
-    service.emergencyResetAllData();
+  public void emergencyResetAllData(@RequestBody(required = false) EmergencyResetRequest request) {
+    boolean keepBankAccounts = request != null && request.keepBankAccounts();
+    service.emergencyResetAllData(keepBankAccounts);
   }
 }

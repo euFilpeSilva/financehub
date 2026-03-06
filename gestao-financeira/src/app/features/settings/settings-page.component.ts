@@ -124,18 +124,20 @@ export class SettingsPageComponent {
   }
 
   protected async emergencyResetAllData(): Promise<void> {
-    const confirmed = await this.confirmDialog.confirm({
+    const result = await this.confirmDialog.confirmWithCheckbox({
       title: 'Zerar base de dados',
       message: 'Esta acao remove todos os dados de todas as tabelas. Deseja continuar?',
       confirmLabel: 'Zerar base',
       tone: 'danger',
       requiredText: 'ZERAR',
-      requiredTextLabel: 'Digite ZERAR para confirmar'
+      requiredTextLabel: 'Digite ZERAR para confirmar',
+      checkboxLabel: 'Manter contas bancarias cadastradas',
+      checkboxDefaultChecked: true
     });
-    if (!confirmed) {
+    if (!result.confirmed) {
       return;
     }
-    this.facade.emergencyResetAllData();
+    this.facade.emergencyResetAllData(result.checkboxChecked);
   }
 
   private async persistPreferences(requireConfirmation: boolean): Promise<void> {
