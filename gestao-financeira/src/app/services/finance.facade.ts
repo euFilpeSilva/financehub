@@ -8,6 +8,7 @@ import {
   ComparisonSummary,
   DataRetentionSettings,
   IncomeEntry,
+  OfxImportBatchProgress,
   OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
@@ -35,6 +36,20 @@ export interface OperationNotice {
 
 @Injectable({ providedIn: 'root' })
 export class FinanceFacade {
+  private static readonly DEFAULT_OFX_IMPORT_BATCH_PROGRESS: OfxImportBatchProgress = {
+    visible: false,
+    running: false,
+    status: 'idle',
+    currentFileName: '',
+    currentFileProgress: 0,
+    currentFilePhase: 'uploading',
+    processedFiles: 0,
+    totalFiles: 0,
+    successCount: 0,
+    failureCount: 0,
+    overallProgress: 0
+  };
+
   private readonly billsFacade = inject(BillsFacade);
   private readonly incomesFacade = inject(IncomesFacade);
   private readonly dashboardAnalyticsFacade = inject(DashboardAnalyticsFacade);
@@ -43,6 +58,9 @@ export class FinanceFacade {
   private readonly bankAccountsFacade = inject(BankAccountsFacade);
   private readonly accountReconciliationSource = signal<AccountReconciliation | null>(null);
   private readonly lastOfxImportSource = signal<OfxImportResult | null>(null);
+  private readonly ofxImportBatchProgressSource = signal<OfxImportBatchProgress>(
+    FinanceFacade.DEFAULT_OFX_IMPORT_BATCH_PROGRESS
+  );
   private readonly operationNoticeSource = signal<OperationNotice | null>(null);
   private noticeId = 0;
 
@@ -71,6 +89,7 @@ export class FinanceFacade {
   readonly lastOfxImport = computed(() => this.lastOfxImportSource());
   readonly operationNotice = computed(() => this.operationNoticeSource());
   readonly accountReconciliation = computed(() => this.accountReconciliationSource());
+  readonly ofxImportBatchProgress = computed(() => this.ofxImportBatchProgressSource());
 
   readonly availableExpenseCategories = this.billsFacade.availableExpenseCategories;
 
@@ -437,6 +456,148 @@ export class FinanceFacade {
         this.loading.set(false);
       })
     );
+  }
+
+  async importOfxBatch(
+    files: File[],
+    ownerName?: string,
+    ownerCpf?: string
+  ): Promise<{ total: number; successCount: number; failureCount: number }> {
+    if (!files.length) {
+      return { total: 0, successCount: 0, failureCount: 0 };
+    }
+
+    const current = this.ofxImportBatchProgressSource();
+    if (current.running) {
+      return {
+        total: current.totalFiles,
+        successCount: current.successCount,
+        failureCount: current.failureCount
+      };
+    }
+
+    this.ofxImportBatchProgressSource.set({
+      visible: true,
+      running: true,
+      status: 'running',
+      currentFileName: '',
+      currentFileProgress: 0,
+      currentFilePhase: 'uploading',
+      processedFiles: 0,
+      totalFiles: files.length,
+      successCount: 0,
+      failureCount: 0,
+      overallProgress: 0
+    });
+
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const file of files) {
+      this.ofxImportBatchProgressSource.update((state) => ({
+        ...state,
+        currentFileName: file.name,
+        currentFileProgress: 0,
+        currentFilePhase: 'uploading'
+      }));
+
+      try {
+        await this.runSingleOfxImportWithProgress(file, ownerName, ownerCpf);
+        successCount += 1;
+      } catch {
+        failureCount += 1;
+      } finally {
+        const processedFiles = successCount + failureCount;
+        this.ofxImportBatchProgressSource.update((state) => ({
+          ...state,
+          processedFiles,
+          successCount,
+          failureCount,
+          overallProgress: state.totalFiles > 0
+            ? Math.round((processedFiles / state.totalFiles) * 100)
+            : 100
+        }));
+      }
+    }
+
+    if (successCount > 0) {
+      this.loadAll();
+    }
+
+    const status = failureCount === 0
+      ? 'success'
+      : successCount === 0
+        ? 'error'
+        : 'partial';
+
+    this.ofxImportBatchProgressSource.update((state) => ({
+      ...state,
+      running: false,
+      status,
+      currentFilePhase: 'completed',
+      currentFileProgress: 100,
+      overallProgress: 100
+    }));
+
+    return { total: files.length, successCount, failureCount };
+  }
+
+  dismissOfxImportWidget(): void {
+    this.ofxImportBatchProgressSource.update((state) => {
+      if (state.running) {
+        return state;
+      }
+      return {
+        ...FinanceFacade.DEFAULT_OFX_IMPORT_BATCH_PROGRESS,
+        visible: false
+      };
+    });
+  }
+
+  private runSingleOfxImportWithProgress(
+    file: File,
+    ownerName?: string,
+    ownerCpf?: string
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const subscription = this.gateway.importOfxStatementWithProgress(file, ownerName, ownerCpf).subscribe({
+        next: (event) => {
+          if (event.kind === 'completed') {
+            this.lastOfxImportSource.set(event.result);
+            this.ofxImportBatchProgressSource.update((state) => ({
+              ...state,
+              currentFileName: event.fileName,
+              currentFileProgress: 100,
+              currentFilePhase: 'completed',
+              overallProgress: this.calculateOverallProgress(state.processedFiles, state.totalFiles, 1)
+            }));
+            subscription.unsubscribe();
+            resolve();
+            return;
+          }
+
+          const currentFraction = Math.min(Math.max(event.progress, 0), 99) / 100;
+          this.ofxImportBatchProgressSource.update((state) => ({
+            ...state,
+            currentFileName: event.fileName,
+            currentFileProgress: event.progress,
+            currentFilePhase: event.phase,
+            overallProgress: this.calculateOverallProgress(state.processedFiles, state.totalFiles, currentFraction)
+          }));
+        },
+        error: (error) => {
+          subscription.unsubscribe();
+          reject(error);
+        }
+      });
+    });
+  }
+
+  private calculateOverallProgress(processedFiles: number, totalFiles: number, currentFraction: number): number {
+    if (totalFiles <= 0) {
+      return 0;
+    }
+    return Math.min(100, Math.round(((processedFiles + currentFraction) / totalFiles) * 100));
   }
 
   reconcileAccount(

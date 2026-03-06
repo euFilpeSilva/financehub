@@ -175,6 +175,22 @@ export type OfxImportProgressEvent =
       result: OfxImportResult;
     };
 
+export type OfxImportBatchStatus = 'idle' | 'running' | 'success' | 'partial' | 'error';
+
+export interface OfxImportBatchProgress {
+  visible: boolean;
+  running: boolean;
+  status: OfxImportBatchStatus;
+  currentFileName: string;
+  currentFileProgress: number;
+  currentFilePhase: 'uploading' | 'processing' | 'completed';
+  processedFiles: number;
+  totalFiles: number;
+  successCount: number;
+  failureCount: number;
+  overallProgress: number;
+}
+
 export interface DashboardSummary {
   incomeTotal: number;
   expenseTotal: number;

@@ -1,8 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { FileUp, FolderOpen, LucideAngularModule, UploadCloud } from 'lucide-angular';
-import { Subscription } from 'rxjs';
 import { FinanceFacade } from '../../services/finance.facade';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/toast/toast.service';
@@ -26,22 +25,6 @@ export class StatementsImportPageComponent {
     ownerCpf: ['05287907141']
   });
   protected readonly dragging = signal(false);
-  protected readonly importing = signal(false);
-  protected readonly currentFileName = signal('');
-  protected readonly currentFileProgress = signal(0);
-  protected readonly currentFilePhase = signal<'uploading' | 'processing' | 'completed'>('uploading');
-  protected readonly processedFiles = signal(0);
-  protected readonly totalFiles = signal(0);
-  protected readonly importPhaseLabel = computed(() => {
-    const phase = this.currentFilePhase();
-    if (phase === 'uploading') {
-      return 'Enviando arquivo';
-    }
-    if (phase === 'processing') {
-      return 'Processando importacao';
-    }
-    return 'Concluido';
-  });
 
   constructor(protected readonly facade: FinanceFacade) {}
 
@@ -58,7 +41,7 @@ export class StatementsImportPageComponent {
   protected onDrop(event: DragEvent): void {
     event.preventDefault();
     this.dragging.set(false);
-    if (this.importing()) {
+    if (this.facade.ofxImportBatchProgress().running) {
       return;
     }
     const files = event.dataTransfer?.files;
@@ -69,7 +52,7 @@ export class StatementsImportPageComponent {
   }
 
   protected onFileSelection(event: Event): void {
-    if (this.importing()) {
+    if (this.facade.ofxImportBatchProgress().running) {
       return;
     }
     const input = event.target as HTMLInputElement | null;
@@ -107,58 +90,23 @@ export class StatementsImportPageComponent {
       return;
     }
 
-    this.importing.set(true);
-    this.processedFiles.set(0);
-    this.totalFiles.set(files.length);
-
-    let successCount = 0;
-    for (const file of files) {
-      this.currentFileName.set(file.name);
-      this.currentFileProgress.set(0);
-      this.currentFilePhase.set('uploading');
-
-      try {
-        await this.runFileImportWithProgress(file, ownerName, ownerCpf);
-        successCount += 1;
-      } catch {
-        this.toast.error(`Falha ao importar OFX: ${file.name}`);
-      } finally {
-        this.processedFiles.update((value) => value + 1);
-      }
+    const summary = await this.facade.importOfxBatch(files, ownerName, ownerCpf);
+    if (summary.total === 0) {
+      return;
     }
 
-    this.importing.set(false);
-    this.currentFileName.set('');
-    this.currentFileProgress.set(0);
+    if (summary.failureCount === 0) {
+      this.toast.success(`Importacao concluida: ${summary.successCount} arquivo(s) processado(s).`);
+      return;
+    }
 
-    if (successCount === files.length) {
-      this.toast.success(`Importacao concluida: ${successCount} arquivo(s) processado(s).`);
+    if (summary.successCount === 0) {
+      this.toast.error('Falha ao importar arquivos OFX.');
       return;
     }
 
     this.toast.info(
-      `Importacao finalizada com pendencias: ${successCount}/${files.length} arquivo(s) importado(s).`
+      `Importacao finalizada com pendencias: ${summary.successCount}/${summary.total} arquivo(s) importado(s).`
     );
-  }
-
-  private runFileImportWithProgress(file: File, ownerName: string, ownerCpf: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      let subscription: Subscription | null = null;
-      subscription = this.facade.importOfxStatementWithProgress(file, ownerName, ownerCpf).subscribe({
-        next: (event) => {
-          this.currentFileName.set(event.fileName);
-          this.currentFileProgress.set(event.progress);
-          this.currentFilePhase.set(event.phase);
-          if (event.kind === 'completed') {
-            subscription?.unsubscribe();
-            resolve();
-          }
-        },
-        error: (error) => {
-          subscription?.unsubscribe();
-          reject(error);
-        }
-      });
-    });
   }
 }

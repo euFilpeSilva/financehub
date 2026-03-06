@@ -79,3 +79,77 @@
 
 <app-confirm-dialog></app-confirm-dialog>
 <app-toast-container></app-toast-container>
+
+<div
+  *ngIf="importProgress().visible"
+  class="fixed right-4 top-4 z-50"
+  (mouseenter)="onImportWidgetMouseEnter()"
+  (mouseleave)="onImportWidgetMouseLeave()"
+>
+  <button
+    type="button"
+    class="group flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 shadow-xl transition hover:border-brand-300"
+    (click)="toggleImportWidget()"
+    [attr.aria-label]="importProgress().running ? 'Mostrar progresso de importacao' : 'Mostrar resumo da importacao'"
+  >
+    <lucide-angular
+      [img]="importProgress().status === 'success' ? CheckCircle2 : importProgress().status === 'error' ? AlertTriangle : CloudUpload"
+      [size]="16"
+      [class]="importProgress().status === 'success' ? 'text-emerald-600' : importProgress().status === 'error' ? 'text-rose-600' : 'text-brand-600'"
+    ></lucide-angular>
+    <span class="text-xs font-bold text-slate-700">{{ importProgress().overallProgress }}%</span>
+  </button>
+
+  <div
+    *ngIf="importWidgetExpanded() || importProgress().running"
+    class="mt-3 w-[320px] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
+  >
+    <div class="mb-3 flex items-start justify-between gap-3">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Importacao OFX</p>
+        <p class="mt-1 text-sm font-semibold text-slate-800">{{ importPhaseLabel() }}</p>
+      </div>
+      <button
+        *ngIf="!importProgress().running"
+        type="button"
+        class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+        (click)="closeImportWidget($event)"
+        aria-label="Fechar widget de importacao"
+      >
+        <lucide-angular [img]="X" [size]="14"></lucide-angular>
+      </button>
+    </div>
+
+    <div class="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <span>Arquivo atual</span>
+      <span>{{ importProgress().currentFileProgress }}%</span>
+    </div>
+    <div class="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+      <div class="h-full rounded-full bg-brand-600 transition-all duration-200" [style.width.%]="importProgress().currentFileProgress"></div>
+    </div>
+    <p class="mt-2 truncate text-sm font-semibold text-slate-800">{{ importProgress().currentFileName || 'Aguardando...' }}</p>
+
+    <div class="mb-2 mt-4 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <span>Progresso geral</span>
+      <span>{{ importProgress().overallProgress }}%</span>
+    </div>
+    <div class="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+      <div class="h-full rounded-full bg-emerald-500 transition-all duration-200" [style.width.%]="importProgress().overallProgress"></div>
+    </div>
+
+    <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+      <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-slate-700">
+        <p class="font-bold">{{ importProgress().processedFiles }}/{{ importProgress().totalFiles }}</p>
+        <p>Processados</p>
+      </div>
+      <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-700">
+        <p class="font-bold">{{ importProgress().successCount }}</p>
+        <p>Sucesso</p>
+      </div>
+      <div class="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-700">
+        <p class="font-bold">{{ importProgress().failureCount }}</p>
+        <p>Falhas</p>
+      </div>
+    </div>
+  </div>
+</div>

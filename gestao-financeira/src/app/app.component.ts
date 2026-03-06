@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect } from '@angular/core';
+import { Component, computed, effect, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Landmark, LucideAngularModule, Moon, Sun } from 'lucide-angular';
+import { AlertTriangle, CheckCircle2, CloudUpload, Landmark, LucideAngularModule, Moon, Sun, X } from 'lucide-angular';
 import { NAV_GROUPS } from './core/constants/finance.constants';
 import { ThemeService } from './core/theme.service';
 import { FinanceFacade } from './services/finance.facade';
@@ -26,10 +26,26 @@ import { ToastService } from './shared/toast/toast.service';
   styleUrl: './app.component.css'
 })
 export class AppComponent {
+  protected readonly CloudUpload = CloudUpload;
+  protected readonly CheckCircle2 = CheckCircle2;
+  protected readonly AlertTriangle = AlertTriangle;
+  protected readonly X = X;
   protected readonly Landmark = Landmark;
   protected readonly Moon = Moon;
   protected readonly Sun = Sun;
   protected readonly navGroups = NAV_GROUPS;
+  protected readonly importWidgetExpanded = signal(false);
+  protected readonly importProgress = this.facade.ofxImportBatchProgress;
+  protected readonly importPhaseLabel = computed(() => {
+    const phase = this.importProgress().currentFilePhase;
+    if (phase === 'uploading') {
+      return 'Enviando arquivo';
+    }
+    if (phase === 'processing') {
+      return 'Processando importacao';
+    }
+    return 'Concluido';
+  });
 
   constructor(
     protected readonly facade: FinanceFacade,
@@ -54,5 +70,26 @@ export class AppComponent {
   protected isDashboardRoute(): boolean {
     const path = this.router.url.split('?')[0];
     return path === '/' || path === '/dashboard';
+  }
+
+  protected onImportWidgetMouseEnter(): void {
+    this.importWidgetExpanded.set(true);
+  }
+
+  protected onImportWidgetMouseLeave(): void {
+    if (this.importProgress().running) {
+      return;
+    }
+    this.importWidgetExpanded.set(false);
+  }
+
+  protected toggleImportWidget(): void {
+    this.importWidgetExpanded.update((expanded) => !expanded);
+  }
+
+  protected closeImportWidget(event: Event): void {
+    event.stopPropagation();
+    this.importWidgetExpanded.set(false);
+    this.facade.dismissOfxImportWidget();
   }
 }
