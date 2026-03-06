@@ -1,5 +1,7 @@
 ﻿# Regras de Negocio da Aplicacao Finance Hub
 
+Ultima revisao: 2026-03-05
+
 ## 1. Objetivo deste documento
 Este documento centraliza as regras de negocio atualmente implementadas no sistema (frontend Angular + backend Spring Boot + Oracle).
 Ele descreve:
@@ -20,7 +22,7 @@ Fluxo padrao de operacao:
 8. Eventos de auditoria e itens da lixeira sao mantidos em tabelas dedicadas.
 
 Observacao importante:
-- O arquivo de mock (`MockFinanceGateway`) ainda existe no codigo, mas a aplicacao esta configurada para usar o gateway HTTP real em `app.config.ts`.
+- A aplicacao usa gateway HTTP real (`HttpFinanceGateway`) em `app.config.ts`.
 
 ## 3. Mapa de telas e responsabilidade
 Rotas principais:
@@ -293,7 +295,9 @@ Regras de parsing:
 Regras de classificacao:
 - Valor negativo -> cria `bill` com valor absoluto e `paid=true`.
 - Valor positivo -> cria `income`.
-- Categoria inicial para importados: `Outros`.
+- Categoria inicial para importados: `Extrato importado`.
+- Entradas de rendimento em blocos `BALLIST/BAL` tambem sao importadas como `income` quando `VALUE > 0` e `NAME`/`DESC` contem `RENDIMENTO`.
+- Para `BAL`, usa `DTASOF` como data e fallback para `DTEND`.
 
 Deteccao de duplicidade:
 - Chave para saida: `data|valor|descricao_normalizada`.
@@ -302,8 +306,10 @@ Deteccao de duplicidade:
 
 Deteccao de transferencia interna no import:
 1. Heuristica por memo no proprio import:
-   - exige termos de transferencia (`PIX` ou `TRANSFER`)
+  - exige termos de transferencia (`PIX`, `TRANSFER`, `TED`, `DOC`)
    - e evidencia de titularidade por CPF ou nome
+  - para corretora legado (`EASYNVEST`, `NUINVEST`, `NUBANK CORRETORA`) marca como transferencia interna mesmo sem contrapartida OFX
+  - na primeira ocorrencia legado, cria automaticamente (idempotente) a conta tecnica `Investimentos - Legado Easynvest`
 2. Deteccao cruzada pos-importacao (opcional, no frontend esta habilitada):
    - chama servico de matching de saida/entrada com mesmo valor e proximidade de data
    - pode auto-aplicar marcacao interna
@@ -525,5 +531,4 @@ Migrations:
 - `GET/PUT /api/v1/governance/app-preferences`
 - `POST /api/v1/governance/retention-cleanup`
 
----
-Ultima revisao deste documento: 2026-03-01
+

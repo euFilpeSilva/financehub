@@ -1,9 +1,12 @@
 # Backend Financeiro (Spring Boot)
 
+Ultima revisao: 2026-03-05
+
 API em monolito modular para gestao financeira, agora com persistencia Oracle via JPA e migrations Flyway.
 
-Manual operacional completo:
-- `MANUAL_OPERACAO_BACKEND.md`
+Documentacao recomendada:
+- `../DOCUMENTACAO.md`
+- `../MANUAL_OPERACAO_SISTEMA.md`
 
 ## Stack
 - Java 17

@@ -1,10 +1,10 @@
 # Status e Proximos Passos - Finance Hub
 
+Ultima revisao: 2026-03-05
+
 ## Escopo
 
 Este documento registra o estado técnico atual do Finance Hub e os próximos passos recomendados para continuidade do desenvolvimento entre frontend e backend.
-
-Data de referência: 27/02/2026
 
 ## 1) Estado atual do projeto
 
@@ -64,11 +64,11 @@ Existem dois projetos no workspace:
 - `GET/PUT /governance/app-preferences`
 - `GET /analytics/dashboard-summary?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
 
-### Infra/execução
-- Persistência atual: in-memory (mock técnico para evolução inicial).
+### Infra/execucao
+- Persistencia Oracle ativa via JPA + Flyway.
 - CORS configurado para `http://localhost:4200`.
-- Java configurado para 17 no `pom.xml` (compatível com ambiente atual).
-- Teste de contexto Spring (`mvn test`) executando com sucesso.
+- Java 17 no `pom.xml`.
+- Build e compilacao do backend validados localmente.
 
 ## 4) Decisões importantes já tomadas
 
@@ -78,30 +78,23 @@ Existem dois projetos no workspace:
 
 ## 5) Próximos passos recomendados (ordem sugerida)
 
-1. Integração frontend-backend
-- Criar `HttpFinanceGateway` no Angular.
-- Trocar injeção do gateway mock por gateway HTTP.
-- Configurar `environment.ts` com `apiBaseUrl`.
+1. Robustez da importacao OFX
+- Evoluir importacao para job assincrono com acompanhamento de processamento no backend (SSE/WebSocket).
+- Adicionar endpoint de consulta por `jobId` para retomada de status apos refresh.
 
-2. Persistência real no backend
-- Adicionar Spring Data JPA + PostgreSQL.
-- Criar entidades JPA, migrations e repositórios reais.
-- Implementar soft delete/lixeira e retenção em banco.
+2. Qualidade e testes
+- Backend: ampliar testes unitarios e de integracao (import OFX, transferencias internas, deduplicacao).
+- Frontend: testes de componente/facade para fluxo de importacao com progresso global.
 
-3. Segurança
+3. Seguranca
 - Adicionar Spring Security + JWT.
 - Criar fluxo de autenticação e proteção de endpoints.
 - Definir modelo de permissões (ex.: usuário comum/admin).
 
-4. Qualidade e testes
-- Backend: testes unitários de serviço + testes de integração dos controllers.
-- Frontend: testes de facade/componentes críticos.
-- Padronizar lint/format e pipeline CI.
-
-5. Evoluções de domínio
-- Completar endpoints para recursos ainda somente no frontend (ex.: spending goals e ciclo completo de lixeira/auditoria, caso necessário).
-- Refinar regras de recorrência (geração mensal controlada e idempotente).
-- Melhorar analytics comparativos e histórico consolidado.
+4. Evolucoes de dominio
+- Criar rotina de reclassificacao retroativa de transferencias para corretora legado (Easynvest/NuInvest).
+- Ajustar conciliacao por conta para separar claramente conta origem x conta tecnica legado.
+- Refinar regras de recorrencia (geracao mensal controlada e idempotente).
 
 ## 6) Como retomar rapidamente depois
 

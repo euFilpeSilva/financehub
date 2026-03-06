@@ -1,6 +1,6 @@
 # Requisitos Funcionais e Não Funcionais - Finance Hub
 
-**Última revisão**: 2026-03-01
+Ultima revisao: 2026-03-05
 
 ---
 
@@ -139,8 +139,10 @@
   - Conteúdo deve conter `<OFX>`
   - Charset: UTF-8 ou ISO-8859-1 conforme header
 - **Regras de negócio**:
-  - Categoria inicial: `Outros`
-  - Detecta transferência interna se memo contém `PIX|TRANSFER` + evidência de titularidade (CPF/nome)
+  - Categoria inicial: `Extrato importado`
+  - Detecta transferência interna se memo contém `PIX|TRANSFER|TED|DOC` + evidência de titularidade (CPF/nome)
+  - Importa rendimentos de blocos `BALLIST/BAL` como entradas quando `VALUE > 0`
+  - Cria conta técnica legado para transferências de corretora descontinuada (Easynvest/NuInvest)
   - Matching cruzado pós-import (mesmo valor, proximidade de data) pode auto-marcar como interna
   - Duplicados ignorados e contabilizados em resumo
 - **Critérios de aceitação**:
@@ -473,7 +475,7 @@
 - **Implementação**:
   - Backend: Java com padrão domain/application/infrastructure
   - Frontend: Angular standalone components com Type Safety
-  - Documentação: README.md, REGRAS_NEGOCIO_APLICACAO.md, MANUAL_OPERACAO_BACKEND.md
+  - Documentação: README.md, DOCUMENTACAO.md, REGRAS_NEGOCIO_APLICACAO.md, MANUAL_OPERACAO_SISTEMA.md
   - Code review em Git (future nice-to-have)
 
 ### 2.12 RNF-012: Portabilidade - Containerização

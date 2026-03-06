@@ -1,5 +1,7 @@
 # Gestao Financeira (Angular)
 
+Ultima revisao: 2026-03-05
+
 Aplicacao frontend completa para gestao financeira pessoal, integrada ao backend via HTTP.
 
 ## Tecnologias
@@ -47,7 +49,8 @@ npm test
 ### Camadas
 
 - `models`: contratos e tipos da aplicacao
-- `services/finance.gateway.ts`: contrato de dados e implementacao mock
+- `services/finance.gateway.ts`: contrato de dados
+- `services/http-finance.gateway.ts`: implementacao HTTP real
 - `services/finance.facade.ts`: estado central, regras de negocio e orquestracao
 - `features/*`: telas por dominio
 - `shared/*`: componentes reaproveitaveis
@@ -65,6 +68,7 @@ Configure a URL da API em:
 - `/contas`: saidas (contas) do mes
 - `/entradas`: entradas de caixa
 - `/planejamento`: metas financeiras
+- `/extratos`: importacao OFX em lote
 - `/lixeira`: itens excluidos (restaurar/excluir permanente)
 - `/auditoria`: trilha de auditoria com filtros
 - `/configuracoes`: tema, retencao e padroes da aplicacao
@@ -227,6 +231,21 @@ Configure a URL da API em:
 3. Salve
 4. Novos registros e comportamento do dashboard passam a usar os padroes
 
+## 9) Importacao OFX com progresso
+
+### O que faz
+
+- Importa multiplos arquivos `.ofx` com confirmacao
+- Mostra progresso por arquivo e progresso geral do lote
+- Exibe widget flutuante global para acompanhar importacao durante navegacao
+
+### Como usar
+
+1. Acesse `/extratos`
+2. Selecione arquivos ou pasta com OFX
+3. Confirme a importacao
+4. Acompanhe o progresso na tela e no widget global
+
 ## Filtros globais de periodo
 
 No topo da aplicacao existe um filtro global por:
@@ -275,7 +294,6 @@ src/app/
 
 ## Proximos passos sugeridos
 
-- Substituir mock por gateway HTTP real
 - Adicionar autenticacao e segregacao por usuario
 - Implementar testes unitarios e de integracao das features principais
 - Adicionar graficos visuais (linha/barra) para analiticos do dashboard

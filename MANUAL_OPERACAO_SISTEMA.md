@@ -1,5 +1,7 @@
 # Manual de Operacao do Sistema
 
+Ultima revisao: 2026-03-05
+
 ## Escopo
 
 Este manual cobre a operação local do sistema Finance Hub como um todo, incluindo backend (`backend-financeiro`), frontend (`gestao-financeira`) e serviços de infraestrutura no `docker-compose.yml` (Oracle, API e UI).
