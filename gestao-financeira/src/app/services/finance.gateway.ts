@@ -9,6 +9,7 @@ import {
   DataRetentionSettings,
   DashboardSummary,
   IncomeEntry,
+  OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
   SpendingGoal,
@@ -63,6 +64,11 @@ export interface FinanceGateway {
   ): Observable<AccountReconciliation>;
   runRetentionCleanup(): Observable<void>;
   emergencyResetAllData(): Observable<void>;
+  importOfxStatementWithProgress(
+    file: File,
+    ownerName?: string,
+    ownerCpf?: string
+  ): Observable<OfxImportProgressEvent>;
   importOfxStatement(file: File, ownerName?: string, ownerCpf?: string): Observable<OfxImportResult>;
 }
 

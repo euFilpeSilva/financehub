@@ -1,6 +1,7 @@
 package com.financehub.backend.modules.statements.application;
 
 import com.financehub.backend.modules.bankaccounts.application.BankAccountService;
+import com.financehub.backend.modules.bankaccounts.api.dto.BankAccountRequest;
 import com.financehub.backend.modules.bankaccounts.domain.BankAccount;
 import com.financehub.backend.modules.bills.api.dto.BillRequest;
 import com.financehub.backend.modules.bills.application.BillService;
@@ -28,6 +29,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class OfxImportService {
   private static final String IMPORTED_STATEMENT_CATEGORY = "Extrato importado";
+  private static final String LEGACY_INVESTMENT_TECHNICAL_LABEL = "Investimentos - Legado Easynvest";
+  private static final String LEGACY_INVESTMENT_TECHNICAL_BANK_ID = "999";
+  private static final String LEGACY_INVESTMENT_TECHNICAL_ACCOUNT_ID = "LEGADOEASYNVEST";
   private static final Set<String> IGNORED_MEMO_MARKERS = Set.of(
     "RESGATE RDB",
     "APLICACAO RDB",
@@ -48,6 +52,11 @@ public class OfxImportService {
     "CREDITO REFERENTE A EMPRESTIMO",
     "CREDITO EMPRESTIMO",
     "CREDITO CONTRATADO"
+  );
+  private static final Set<String> LEGACY_INVESTMENT_MARKERS = Set.of(
+    "EASYNVEST",
+    "NUINVEST",
+    "NUBANK CORRETORA"
   );
   private static final Pattern START_TAG_PATTERN = Pattern.compile("(?is)<DTSTART>(.*?)</DTSTART>");
   private static final Pattern END_TAG_PATTERN = Pattern.compile("(?is)<DTEND>(.*?)</DTEND>");
@@ -116,6 +125,7 @@ public class OfxImportService {
     int createdBills = 0;
     int createdIncomes = 0;
     int skippedDuplicates = 0;
+    boolean legacyTechnicalAccountEnsured = false;
 
     for (String block : extractTransactionBlocks(content)) {
       OfxTransaction tx = parseTransaction(block);
@@ -125,6 +135,12 @@ public class OfxImportService {
       if (shouldIgnoreTransaction(tx.memo())) {
         continue;
       }
+
+      if (!legacyTechnicalAccountEnsured && isLegacyInvestmentTransferMemo(tx.memo())) {
+        ensureLegacyInvestmentTechnicalAccount();
+        legacyTechnicalAccountEnsured = true;
+      }
+
       total += 1;
       boolean creditTransaction = tx.amount().compareTo(BigDecimal.ZERO) > 0;
       boolean internalTransfer = detectInternalByMemo(
@@ -317,13 +333,13 @@ public class OfxImportService {
       return false;
     }
 
-    boolean hasTransferWord =
-      normalized.contains("PIX") ||
-      normalized.contains("TRANSFER") ||
-      normalized.contains("TED") ||
-      normalized.contains("DOC");
+    boolean hasTransferWord = hasTransferKeyword(normalized);
     if (!hasTransferWord) {
       return false;
+    }
+
+    if (isLegacyInvestmentTransferMemoNormalized(normalized)) {
+      return true;
     }
 
     if (SAME_OWNERSHIP_MARKERS.stream().anyMatch(normalized::contains)) {
@@ -336,6 +352,45 @@ public class OfxImportService {
     }
 
     return memo.replaceAll("\\D", "").contains(cpfDigits);
+  }
+
+  private boolean isLegacyInvestmentTransferMemo(String memo) {
+    String normalized = normalizeText(memo);
+    return isLegacyInvestmentTransferMemoNormalized(normalized);
+  }
+
+  private boolean isLegacyInvestmentTransferMemoNormalized(String normalizedMemo) {
+    if (normalizedMemo == null || normalizedMemo.isBlank()) {
+      return false;
+    }
+    if (!hasTransferKeyword(normalizedMemo)) {
+      return false;
+    }
+    return LEGACY_INVESTMENT_MARKERS.stream().anyMatch(normalizedMemo::contains);
+  }
+
+  private boolean hasTransferKeyword(String normalizedMemo) {
+    return normalizedMemo.contains("PIX") ||
+      normalizedMemo.contains("TRANSFER") ||
+      normalizedMemo.contains("TED") ||
+      normalizedMemo.contains("DOC");
+  }
+
+  private void ensureLegacyInvestmentTechnicalAccount() {
+    boolean exists = bankAccountService.listAll().stream()
+      .anyMatch(account -> normalizeText(account.getLabel()).equals(normalizeText(LEGACY_INVESTMENT_TECHNICAL_LABEL)));
+    if (exists) {
+      return;
+    }
+
+    bankAccountService.create(new BankAccountRequest(
+      LEGACY_INVESTMENT_TECHNICAL_LABEL,
+      LEGACY_INVESTMENT_TECHNICAL_BANK_ID,
+      null,
+      LEGACY_INVESTMENT_TECHNICAL_ACCOUNT_ID,
+      false,
+      true
+    ));
   }
 
   private boolean isLoanCreditMemo(String normalizedMemo) {

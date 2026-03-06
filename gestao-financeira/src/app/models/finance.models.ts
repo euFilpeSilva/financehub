@@ -160,6 +160,21 @@ export interface OfxImportResult {
   internalTransfersMarked: number;
 }
 
+export type OfxImportProgressEvent =
+  | {
+      kind: 'progress';
+      fileName: string;
+      progress: number;
+      phase: 'uploading' | 'processing';
+    }
+  | {
+      kind: 'completed';
+      fileName: string;
+      progress: 100;
+      phase: 'completed';
+      result: OfxImportResult;
+    };
+
 export interface DashboardSummary {
   incomeTotal: number;
   expenseTotal: number;

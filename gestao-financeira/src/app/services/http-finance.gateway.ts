@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { filter, map } from 'rxjs/operators';
 import {
   resolveDefaultCategory,
   safeBillCategories,
@@ -16,6 +16,7 @@ import {
   DataRetentionSettings,
   DashboardSummary,
   IncomeEntry,
+  OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
   SpendingGoal,
@@ -348,6 +349,17 @@ export class HttpFinanceGateway implements FinanceGateway {
   }
 
   importOfxStatement(file: File, ownerName?: string, ownerCpf?: string): Observable<OfxImportResult> {
+    return this.importOfxStatementWithProgress(file, ownerName, ownerCpf).pipe(
+      filter((event): event is Extract<OfxImportProgressEvent, { kind: 'completed' }> => event.kind === 'completed'),
+      map((event) => event.result)
+    );
+  }
+
+  importOfxStatementWithProgress(
+    file: File,
+    ownerName?: string,
+    ownerCpf?: string
+  ): Observable<OfxImportProgressEvent> {
     const formData = new FormData();
     formData.append('file', file, file.name);
     if (ownerName && ownerName.trim().length > 0) {
@@ -357,7 +369,62 @@ export class HttpFinanceGateway implements FinanceGateway {
       formData.append('ownerCpf', ownerCpf.trim());
     }
     formData.append('applyInternalTransferDetection', 'true');
-    return this.http.post<OfxImportApi>(`${this.baseUrl}/statements/import/ofx`, formData);
+
+    return this.http.post<OfxImportApi>(
+      `${this.baseUrl}/statements/import/ofx`,
+      formData,
+      {
+        observe: 'events',
+        reportProgress: true
+      }
+    ).pipe(
+      map((event) => this.mapOfxImportEvent(event as HttpEvent<OfxImportApi>, file.name)),
+      filter((event): event is OfxImportProgressEvent => event !== null)
+    );
+  }
+
+  private mapOfxImportEvent(event: HttpEvent<OfxImportApi>, fileName: string): OfxImportProgressEvent | null {
+    if (event.type === HttpEventType.Sent) {
+      return {
+        kind: 'progress',
+        fileName,
+        progress: 0,
+        phase: 'uploading'
+      };
+    }
+
+    if (event.type === HttpEventType.UploadProgress) {
+      const uploadPercent = event.total
+        ? Math.round((event.loaded / event.total) * 90)
+        : 65;
+      return {
+        kind: 'progress',
+        fileName,
+        progress: Math.min(95, Math.max(1, uploadPercent)),
+        phase: 'uploading'
+      };
+    }
+
+    if (event.type === HttpEventType.ResponseHeader) {
+      return {
+        kind: 'progress',
+        fileName,
+        progress: 95,
+        phase: 'processing'
+      };
+    }
+
+    if (event.type === HttpEventType.Response && event.body) {
+      return {
+        kind: 'completed',
+        fileName,
+        progress: 100,
+        phase: 'completed',
+        result: event.body
+      };
+    }
+
+    return null;
   }
 
   private normalizeAppPreferences(payload: Partial<AppPreferences>): AppPreferences {

@@ -8,11 +8,13 @@ import {
   ComparisonSummary,
   DataRetentionSettings,
   IncomeEntry,
+  OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
   SpendingGoal,
   SpendingGoalStatus
 } from '../models/finance.models';
+import { tap } from 'rxjs/operators';
 import { FINANCE_GATEWAY, FinanceGateway } from './finance.gateway';
 import {
   getCurrentMonth,
@@ -407,6 +409,33 @@ export class FinanceFacade {
       },
       'Falha ao importar OFX.',
       'OFX importado com sucesso.'
+    );
+  }
+
+  importOfxStatementWithProgress(
+    file: File,
+    ownerName?: string,
+    ownerCpf?: string
+  ): Observable<OfxImportProgressEvent> {
+    this.loading.set(true);
+    this.lastError.set(null);
+
+    return this.gateway.importOfxStatementWithProgress(file, ownerName, ownerCpf).pipe(
+      tap({
+        next: (event) => {
+          if (event.kind !== 'completed') {
+            return;
+          }
+          this.lastOfxImportSource.set(event.result);
+          this.loadAll();
+        },
+        error: () => {
+          this.lastError.set('Falha ao importar OFX.');
+        }
+      }),
+      finalize(() => {
+        this.loading.set(false);
+      })
     );
   }
 
