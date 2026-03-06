@@ -5,6 +5,7 @@ import com.financehub.backend.modules.bills.domain.BillRepository;
 import com.financehub.backend.modules.incomes.domain.Income;
 import com.financehub.backend.modules.incomes.domain.IncomeRepository;
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferSuggestionResponse;
+import com.financehub.backend.modules.transfers.api.dto.InternalTransferReclassificationResponse;
 import com.financehub.backend.shared.api.NotFoundException;
 import com.financehub.backend.shared.application.port.AuditPort;
 import java.text.Normalizer;
@@ -25,6 +26,19 @@ public class InternalTransferService {
     "CREDITO REFERENTE A EMPRESTIMO",
     "CREDITO EMPRESTIMO",
     "CREDITO CONTRATADO"
+  );
+  private static final Set<String> LEGACY_BROKER_MARKERS = Set.of(
+    "EASYNVEST",
+    "NUINVEST",
+    "NUBANK CORRETORA"
+  );
+  private static final Set<String> PICPAY_MARKERS = Set.of(
+    "PICPAY",
+    "PIC PAY"
+  );
+  private static final Set<String> MERCADO_PAGO_MARKERS = Set.of(
+    "MERCADO PAGO",
+    "MERCADOPAGO"
   );
 
   private final BillRepository billRepository;
@@ -174,6 +188,99 @@ public class InternalTransferService {
     }
 
     return suggestions;
+  }
+
+  @Transactional
+  public InternalTransferReclassificationResponse reclassifyLegacyTransfers(
+    String ownerName,
+    String ownerCpf,
+    boolean includePicpay,
+    boolean includeLegacyBroker
+  ) {
+    Set<String> ownerTokens = tokenizeOwnerName(ownerName);
+    String ownerCpfDigits = onlyDigits(ownerCpf);
+
+    int billsMarked = 0;
+    int incomesMarked = 0;
+
+    for (Bill bill : billRepository.findAll()) {
+      if (bill.isInternalTransfer()) {
+        continue;
+      }
+      String normalized = normalizeText(bill.getDescription());
+      if (!shouldMarkLegacyInternalTransfer(normalized, ownerTokens, ownerCpfDigits, includePicpay, includeLegacyBroker)) {
+        continue;
+      }
+      bill.setInternalTransfer(true);
+      billRepository.save(bill);
+      billsMarked += 1;
+    }
+
+    for (Income income : incomeRepository.findAll()) {
+      if (income.isInternalTransfer() || isLoanOriginIncome(income)) {
+        continue;
+      }
+      String normalized = normalizeText(income.getSource());
+      if (!shouldMarkLegacyInternalTransfer(normalized, ownerTokens, ownerCpfDigits, includePicpay, includeLegacyBroker)) {
+        continue;
+      }
+      income.setInternalTransfer(true);
+      incomeRepository.save(income);
+      incomesMarked += 1;
+    }
+
+    int totalMarked = billsMarked + incomesMarked;
+    if (totalMarked > 0) {
+      auditPort.record(
+        "transfer",
+        "reclassify-legacy",
+        "reclassify-internal",
+        "Reclassificacao retroativa de transferencias internas: " + totalMarked,
+        null
+      );
+    }
+
+    return new InternalTransferReclassificationResponse(billsMarked, incomesMarked, totalMarked);
+  }
+
+  private boolean shouldMarkLegacyInternalTransfer(
+    String normalizedText,
+    Set<String> ownerTokens,
+    String ownerCpfDigits,
+    boolean includePicpay,
+    boolean includeLegacyBroker
+  ) {
+    if (normalizedText == null || normalizedText.isBlank()) {
+      return false;
+    }
+
+    boolean hasTransferKeyword = normalizedText.contains("PIX") ||
+      normalizedText.contains("TRANSFER") ||
+      normalizedText.contains("TED") ||
+      normalizedText.contains("DOC");
+    if (!hasTransferKeyword) {
+      return false;
+    }
+
+    if (includeLegacyBroker && LEGACY_BROKER_MARKERS.stream().anyMatch(normalizedText::contains)) {
+      return true;
+    }
+
+    boolean hasWalletMarker =
+      PICPAY_MARKERS.stream().anyMatch(normalizedText::contains) ||
+      MERCADO_PAGO_MARKERS.stream().anyMatch(normalizedText::contains);
+    if (!includePicpay || !hasWalletMarker) {
+      return false;
+    }
+
+    if (!ownerCpfDigits.isBlank()) {
+      String textDigits = normalizedText.replaceAll("\\D", "");
+      if (textDigits.contains(ownerCpfDigits)) {
+        return true;
+      }
+    }
+
+    return countMatchedOwnerTokens(normalizedText, ownerTokens) >= 2;
   }
 
   private Set<String> tokenizeOwnerName(String ownerName) {

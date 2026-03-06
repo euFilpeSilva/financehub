@@ -176,6 +176,26 @@ export class FinanceFacade {
     this.refreshDashboardSummary();
   }
 
+  listBillsFiltered(filters: Parameters<FinanceGateway['listBills']>[0]) {
+    return this.gateway.listBills(filters);
+  }
+
+  listIncomesFiltered(filters: Parameters<FinanceGateway['listIncomes']>[0]) {
+    return this.gateway.listIncomes(filters);
+  }
+
+  listGoalsFiltered(filters: Parameters<FinanceGateway['listGoals']>[0]) {
+    return this.gateway.listGoals(filters);
+  }
+
+  listTrashItemsFiltered(filters: Parameters<FinanceGateway['listTrashItems']>[0]) {
+    return this.gateway.listTrashItems(filters);
+  }
+
+  listAuditEventsFiltered(filters: Parameters<FinanceGateway['listAuditEvents']>[0]) {
+    return this.gateway.listAuditEvents(filters);
+  }
+
   addBill(payload: Omit<BillRecord, 'id'>): void {
     this.execute(
       this.gateway.createBill(payload),

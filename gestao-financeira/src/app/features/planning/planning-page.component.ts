@@ -1,11 +1,12 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Goal, LucideAngularModule, Pencil, Plus, Trash2, X } from 'lucide-angular';
 import { startWith } from 'rxjs/operators';
 import { PlanningGoal } from '../../models/finance.models';
 import { FinanceFacade } from '../../services/finance.facade';
+import { PlanningGoalListFilters } from '../../services/finance.gateway';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { CurrencyMaskDirective } from '../../shared/directives/currency-mask.directive';
 import { FilterPanelComponent } from '../../shared/filter-panel/filter-panel.component';
@@ -45,43 +46,30 @@ export class PlanningPageComponent {
     this.filterForm.valueChanges.pipe(startWith(this.filterForm.getRawValue())),
     { initialValue: this.filterForm.getRawValue() }
   );
+  private readonly backendFilteredGoals = signal<PlanningGoal[]>([]);
   protected editingGoalId: string | null = null;
   protected readonly filteredGoals = computed(() => {
-    const filters = this.filterValues();
-    const query = (filters.query ?? '').trim().toLowerCase();
-    const status = filters.status ?? 'ALL';
-    const startDate = filters.startDate ?? '';
-    const endDate = filters.endDate ?? '';
     const sortBy = this.sortBy();
     const sortDirection = this.sortDirection();
 
-    const filtered = this.facade.allGoals().filter((goal) => {
-      if (query && !goal.title.toLowerCase().includes(query)) {
-        return false;
-      }
-      if (status === 'COMPLETE' && !goal.complete) {
-        return false;
-      }
-      if (status === 'IN_PROGRESS' && goal.complete) {
-        return false;
-      }
-      if (startDate && goal.targetDate < startDate) {
-        return false;
-      }
-      if (endDate && goal.targetDate > endDate) {
-        return false;
-      }
-      return true;
-    });
-
     const direction = sortDirection === 'asc' ? 1 : -1;
-    return filtered.slice().sort((first, second) => {
+    return this.backendFilteredGoals().slice().sort((first, second) => {
       const compare = this.compareGoal(first, second, sortBy);
       return compare * direction;
     });
   });
 
-  constructor(protected readonly facade: FinanceFacade) {}
+  constructor(protected readonly facade: FinanceFacade) {
+    effect(() => {
+      this.filterValues();
+      this.fetchGoalsFromBackend();
+    });
+
+    effect(() => {
+      this.facade.allGoals();
+      this.fetchGoalsFromBackend();
+    });
+  }
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {
@@ -245,6 +233,24 @@ export class PlanningPageComponent {
       return Number(first.complete) - Number(second.complete);
     }
     return first.targetDate.localeCompare(second.targetDate);
+  }
+
+  private fetchGoalsFromBackend(): void {
+    const filters = this.toPlanningFilters();
+    this.facade.listGoalsFiltered(filters).subscribe({
+      next: (items) => this.backendFilteredGoals.set(items),
+      error: () => this.backendFilteredGoals.set([])
+    });
+  }
+
+  private toPlanningFilters(): PlanningGoalListFilters {
+    const filters = this.filterValues();
+    return {
+      query: (filters.query ?? '').trim(),
+      status: filters.status ?? 'ALL',
+      startDate: filters.startDate ?? '',
+      endDate: filters.endDate ?? ''
+    };
   }
 }
 

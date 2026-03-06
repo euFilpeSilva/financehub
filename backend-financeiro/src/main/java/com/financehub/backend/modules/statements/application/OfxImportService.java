@@ -58,6 +58,16 @@ public class OfxImportService {
     "NUINVEST",
     "NUBANK CORRETORA"
   );
+  private static final Set<String> PICPAY_MARKERS = Set.of(
+    "PICPAY",
+    "PIC PAY"
+  );
+  private static final Set<String> MERCADO_PAGO_MARKERS = Set.of(
+    "MERCADO PAGO",
+    "MERCADOPAGO"
+  );
+  private static final String ITAU_CARD_PAYMENT_INTERNAL_MEMO = "INT ITAU MC";
+  private static final String ITAU_CARD_PAYMENT_DETAILED_PREFIX = "ITAU MC";
   private static final Pattern START_TAG_PATTERN = Pattern.compile("(?is)<DTSTART>(.*?)</DTSTART>");
   private static final Pattern END_TAG_PATTERN = Pattern.compile("(?is)<DTEND>(.*?)</DTEND>");
 
@@ -127,12 +137,19 @@ public class OfxImportService {
     int skippedDuplicates = 0;
     boolean legacyTechnicalAccountEnsured = false;
 
-    for (String block : extractTransactionBlocks(content)) {
-      OfxTransaction tx = parseTransaction(block);
-      if (tx == null) {
+    List<OfxTransaction> parsedTransactions = extractTransactionBlocks(content).stream()
+      .map(this::parseTransaction)
+      .filter(tx -> tx != null)
+      .toList();
+    Set<String> itauCardPaymentPairKeys = buildItauCardPaymentPairKeys(parsedTransactions);
+
+    for (OfxTransaction tx : parsedTransactions) {
+      if (shouldIgnoreTransaction(tx.memo())) {
         continue;
       }
-      if (shouldIgnoreTransaction(tx.memo())) {
+
+      if (shouldSkipItauCardPairDuplicate(tx, itauCardPaymentPairKeys)) {
+        skippedDuplicates += 1;
         continue;
       }
 
@@ -145,6 +162,7 @@ public class OfxImportService {
       boolean creditTransaction = tx.amount().compareTo(BigDecimal.ZERO) > 0;
       boolean internalTransfer = detectInternalByMemo(
         tx.memo(),
+        ownerName,
         ownerCpf,
         creditTransaction
       );
@@ -191,7 +209,7 @@ public class OfxImportService {
 
     for (OfxTransaction tx : extractBalanceIncomeBlocks(content)) {
       total += 1;
-      boolean internalTransfer = detectInternalByMemo(tx.memo(), ownerCpf, true);
+      boolean internalTransfer = detectInternalByMemo(tx.memo(), ownerName, ownerCpf, true);
       double amount = tx.amount().doubleValue();
       String key = buildIncomeKey(tx.postedAt(), amount, tx.memo());
       if (existingIncomeKeys.contains(key)) {
@@ -324,6 +342,7 @@ public class OfxImportService {
 
   private boolean detectInternalByMemo(
     String memo,
+    String ownerName,
     String ownerCpf,
     boolean creditTransaction
   ) {
@@ -342,6 +361,14 @@ public class OfxImportService {
       return true;
     }
 
+    if (isPicPayOwnTransferMemo(normalized, ownerName, ownerCpf)) {
+      return true;
+    }
+
+    if (isMercadoPagoOwnTransferMemo(normalized, ownerName, ownerCpf)) {
+      return true;
+    }
+
     if (SAME_OWNERSHIP_MARKERS.stream().anyMatch(normalized::contains)) {
       return true;
     }
@@ -352,6 +379,66 @@ public class OfxImportService {
     }
 
     return memo.replaceAll("\\D", "").contains(cpfDigits);
+  }
+
+  private boolean isPicPayOwnTransferMemo(String normalizedMemo, String ownerName, String ownerCpf) {
+    if (normalizedMemo == null || normalizedMemo.isBlank()) {
+      return false;
+    }
+    if (!hasTransferKeyword(normalizedMemo)) {
+      return false;
+    }
+
+    boolean hasPicPayMarker = PICPAY_MARKERS.stream().anyMatch(normalizedMemo::contains);
+    if (!hasPicPayMarker) {
+      return false;
+    }
+
+    String cpfDigits = ownerCpf == null ? "" : ownerCpf.replaceAll("\\D", "");
+    if (!cpfDigits.isBlank() && normalizedMemo.replaceAll("\\D", "").contains(cpfDigits)) {
+      return true;
+    }
+
+    return hasOwnerNameEvidence(normalizedMemo, ownerName);
+  }
+
+  private boolean isMercadoPagoOwnTransferMemo(String normalizedMemo, String ownerName, String ownerCpf) {
+    if (normalizedMemo == null || normalizedMemo.isBlank()) {
+      return false;
+    }
+    if (!hasTransferKeyword(normalizedMemo)) {
+      return false;
+    }
+
+    boolean hasMercadoPagoMarker = MERCADO_PAGO_MARKERS.stream().anyMatch(normalizedMemo::contains);
+    if (!hasMercadoPagoMarker) {
+      return false;
+    }
+
+    String cpfDigits = ownerCpf == null ? "" : ownerCpf.replaceAll("\\D", "");
+    if (!cpfDigits.isBlank() && normalizedMemo.replaceAll("\\D", "").contains(cpfDigits)) {
+      return true;
+    }
+
+    return hasOwnerNameEvidence(normalizedMemo, ownerName);
+  }
+
+  private boolean hasOwnerNameEvidence(String normalizedText, String ownerName) {
+    String normalizedOwnerName = normalizeText(ownerName);
+    if (normalizedOwnerName.isBlank()) {
+      return false;
+    }
+
+    int matchedTokens = 0;
+    for (String token : normalizedOwnerName.split(" ")) {
+      if (token.length() < 3) {
+        continue;
+      }
+      if (normalizedText.contains(token)) {
+        matchedTokens += 1;
+      }
+    }
+    return matchedTokens >= 2;
   }
 
   private boolean isLegacyInvestmentTransferMemo(String memo) {
@@ -432,6 +519,54 @@ public class OfxImportService {
 
   private String buildIncomeKey(LocalDate receivedAt, double amount, String source) {
     return receivedAt + "|" + String.format(Locale.US, "%.2f", amount) + "|" + normalizeText(source);
+  }
+
+  private Set<String> buildItauCardPaymentPairKeys(List<OfxTransaction> transactions) {
+    Set<String> internalKeys = new HashSet<>();
+    Set<String> detailedKeys = new HashSet<>();
+
+    for (OfxTransaction tx : transactions) {
+      if (tx == null || tx.amount().compareTo(BigDecimal.ZERO) >= 0) {
+        continue;
+      }
+      String normalizedMemo = normalizeText(tx.memo());
+      String pairKey = buildItauCardPairKey(tx.postedAt(), tx.amount().abs().doubleValue());
+
+      if (isItauCardInternalMemo(normalizedMemo)) {
+        internalKeys.add(pairKey);
+      } else if (isItauCardDetailedMemo(normalizedMemo)) {
+        detailedKeys.add(pairKey);
+      }
+    }
+
+    Set<String> pairKeys = new HashSet<>(internalKeys);
+    pairKeys.retainAll(detailedKeys);
+    return pairKeys;
+  }
+
+  private boolean shouldSkipItauCardPairDuplicate(OfxTransaction tx, Set<String> pairKeys) {
+    if (tx == null || tx.amount().compareTo(BigDecimal.ZERO) >= 0) {
+      return false;
+    }
+    String normalizedMemo = normalizeText(tx.memo());
+    if (!isItauCardInternalMemo(normalizedMemo)) {
+      return false;
+    }
+
+    String pairKey = buildItauCardPairKey(tx.postedAt(), tx.amount().abs().doubleValue());
+    return pairKeys.contains(pairKey);
+  }
+
+  private boolean isItauCardInternalMemo(String normalizedMemo) {
+    return ITAU_CARD_PAYMENT_INTERNAL_MEMO.equals(normalizedMemo);
+  }
+
+  private boolean isItauCardDetailedMemo(String normalizedMemo) {
+    return normalizedMemo.startsWith(ITAU_CARD_PAYMENT_DETAILED_PREFIX + " ");
+  }
+
+  private String buildItauCardPairKey(LocalDate postedAt, double amount) {
+    return postedAt + "|" + String.format(Locale.US, "%.2f", amount);
   }
 
   private String extractPeriodInfo(String content) {

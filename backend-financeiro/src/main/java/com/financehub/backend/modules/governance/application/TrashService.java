@@ -19,8 +19,11 @@ import com.financehub.backend.modules.spending.domain.SpendingGoal;
 import com.financehub.backend.modules.spending.domain.SpendingGoalRepository;
 import com.financehub.backend.shared.api.NotFoundException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +64,18 @@ public class TrashService {
   @Transactional(readOnly = true)
   public List<TrashItem> listAll() {
     return trashRepository.findAllByOrderByDeletedAtDesc().stream().map(this::toDomain).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<TrashItem> listFiltered(String query, String entityType, LocalDate startDate, LocalDate endDate) {
+    String normalizedQuery = normalizeText(query);
+    String normalizedEntityType = normalizeOption(entityType);
+
+    return listAll().stream()
+      .filter(item -> matchesQuery(item, normalizedQuery))
+      .filter(item -> matchesEntityType(item, normalizedEntityType))
+      .filter(item -> matchesDateRange(item, startDate, endDate))
+      .toList();
   }
 
   @Transactional
@@ -151,5 +166,49 @@ public class TrashService {
       entity.getDeletedAt(),
       entity.getPurgeAt()
     );
+  }
+
+  private boolean matchesQuery(TrashItem item, String normalizedQuery) {
+    if (normalizedQuery.isBlank()) {
+      return true;
+    }
+    return normalizeText(item.label()).contains(normalizedQuery);
+  }
+
+  private boolean matchesEntityType(TrashItem item, String normalizedEntityType) {
+    if (normalizedEntityType.isBlank() || "ALL".equals(normalizedEntityType)) {
+      return true;
+    }
+    return normalizeOption(item.entityType()).equals(normalizedEntityType);
+  }
+
+  private boolean matchesDateRange(TrashItem item, LocalDate startDate, LocalDate endDate) {
+    LocalDate deletedDate = item.deletedAt().atZone(ZoneOffset.UTC).toLocalDate();
+    if (startDate != null && deletedDate.isBefore(startDate)) {
+      return false;
+    }
+    if (endDate != null && deletedDate.isAfter(endDate)) {
+      return false;
+    }
+    return true;
+  }
+
+  private String normalizeOption(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return value.trim().toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizeText(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+      .replaceAll("\\p{M}", "")
+      .toUpperCase(Locale.ROOT)
+      .replaceAll("[^A-Z0-9 ]", " ")
+      .replaceAll("\\s{2,}", " ")
+      .trim();
   }
 }

@@ -23,7 +23,14 @@ import {
   SpendingGoalStatus,
   TrashItem
 } from '../models/finance.models';
-import { FinanceGateway } from './finance.gateway';
+import {
+  AuditEventListFilters,
+  BillListFilters,
+  FinanceGateway,
+  IncomeListFilters,
+  PlanningGoalListFilters,
+  TrashListFilters
+} from './finance.gateway';
 import { environment } from '../../environments/environment';
 
 type BillApi = {
@@ -120,8 +127,9 @@ export class HttpFinanceGateway implements FinanceGateway {
 
   constructor(private readonly http: HttpClient) {}
 
-  listBills(): Observable<BillRecord[]> {
-    return this.http.get<BillApi[]>(`${this.baseUrl}/bills`).pipe(
+  listBills(filters?: BillListFilters): Observable<BillRecord[]> {
+    const params = this.buildBillParams(filters);
+    return this.http.get<BillApi[]>(`${this.baseUrl}/bills`, { params }).pipe(
       map((items) => items.map((item) => ({ ...item, internalTransfer: Boolean(item.internalTransfer) })))
     );
   }
@@ -158,10 +166,74 @@ export class HttpFinanceGateway implements FinanceGateway {
     );
   }
 
-  listIncomes(): Observable<IncomeEntry[]> {
-    return this.http.get<IncomeApi[]>(`${this.baseUrl}/incomes`).pipe(
+  listIncomes(filters?: IncomeListFilters): Observable<IncomeEntry[]> {
+    const params = this.buildIncomeParams(filters);
+    return this.http.get<IncomeApi[]>(`${this.baseUrl}/incomes`, { params }).pipe(
       map((items) => items.map((item) => ({ ...item, internalTransfer: Boolean(item.internalTransfer) })))
     );
+  }
+
+  private buildBillParams(filters?: BillListFilters): Record<string, string> {
+    if (!filters) {
+      return {};
+    }
+
+    const params: Record<string, string> = {};
+    if (filters.query && filters.query.trim().length > 0) {
+      params['query'] = filters.query.trim();
+    }
+    if (filters.category && filters.category !== 'ALL') {
+      params['category'] = filters.category;
+    }
+    if (filters.bankAccountId && filters.bankAccountId !== 'ALL') {
+      params['bankAccountId'] = filters.bankAccountId;
+    }
+    if (filters.status && filters.status !== 'ALL') {
+      params['status'] = filters.status;
+    }
+    if (filters.recurring && filters.recurring !== 'ALL') {
+      params['recurring'] = filters.recurring;
+    }
+    if (filters.startDate && filters.startDate.trim().length > 0) {
+      params['startDate'] = filters.startDate;
+    }
+    if (filters.endDate && filters.endDate.trim().length > 0) {
+      params['endDate'] = filters.endDate;
+    }
+    return params;
+  }
+
+  private buildIncomeParams(filters?: IncomeListFilters): Record<string, string> {
+    if (!filters) {
+      return {};
+    }
+
+    const params: Record<string, string> = {};
+    if (filters.query && filters.query.trim().length > 0) {
+      params['query'] = filters.query.trim();
+    }
+    if (filters.category && filters.category !== 'ALL') {
+      params['category'] = filters.category;
+    }
+    if (filters.bankAccountId && filters.bankAccountId !== 'ALL') {
+      params['bankAccountId'] = filters.bankAccountId;
+    }
+    if (filters.recurring && filters.recurring !== 'ALL') {
+      params['recurring'] = filters.recurring;
+    }
+    if (filters.startDate && filters.startDate.trim().length > 0) {
+      params['startDate'] = filters.startDate;
+    }
+    if (filters.endDate && filters.endDate.trim().length > 0) {
+      params['endDate'] = filters.endDate;
+    }
+    if (typeof filters.minAmount === 'number' && !Number.isNaN(filters.minAmount)) {
+      params['minAmount'] = String(filters.minAmount);
+    }
+    if (typeof filters.maxAmount === 'number' && !Number.isNaN(filters.maxAmount)) {
+      params['maxAmount'] = String(filters.maxAmount);
+    }
+    return params;
   }
 
   createIncome(payload: Omit<IncomeEntry, 'id'>): Observable<IncomeEntry> {
@@ -187,8 +259,9 @@ export class HttpFinanceGateway implements FinanceGateway {
     return this.http.delete<void>(`${this.baseUrl}/incomes/${id}`);
   }
 
-  listGoals(): Observable<PlanningGoal[]> {
-    return this.http.get<GoalApi[]>(`${this.baseUrl}/planning-goals`);
+  listGoals(filters?: PlanningGoalListFilters): Observable<PlanningGoal[]> {
+    const params = this.buildPlanningParams(filters);
+    return this.http.get<GoalApi[]>(`${this.baseUrl}/planning-goals`, { params });
   }
 
   createGoal(payload: Omit<PlanningGoal, 'id'>): Observable<PlanningGoal> {
@@ -264,8 +337,9 @@ export class HttpFinanceGateway implements FinanceGateway {
     return this.http.delete<void>(`${this.baseUrl}/spending-goals/${id}`);
   }
 
-  listTrashItems(): Observable<TrashItem[]> {
-    return this.http.get<TrashApi[]>(`${this.baseUrl}/governance/trash-items`);
+  listTrashItems(filters?: TrashListFilters): Observable<TrashItem[]> {
+    const params = this.buildTrashParams(filters);
+    return this.http.get<TrashApi[]>(`${this.baseUrl}/governance/trash-items`, { params });
   }
 
   restoreTrashItem(trashId: string): Observable<void> {
@@ -296,8 +370,9 @@ export class HttpFinanceGateway implements FinanceGateway {
       .pipe(map((response) => this.normalizeAppPreferences(response)));
   }
 
-  listAuditEvents(): Observable<AuditEvent[]> {
-    return this.http.get<AuditApi[]>(`${this.baseUrl}/governance/audit-events`).pipe(
+  listAuditEvents(filters?: AuditEventListFilters): Observable<AuditEvent[]> {
+    const params = this.buildAuditParams(filters);
+    return this.http.get<AuditApi[]>(`${this.baseUrl}/governance/audit-events`, { params }).pipe(
       map((items) => items.map((item) => ({
         id: item.id,
         entityType: item.entityType as AuditEvent['entityType'],
@@ -308,6 +383,84 @@ export class HttpFinanceGateway implements FinanceGateway {
         timestamp: item.timestamp
       })))
     );
+  }
+
+  private buildPlanningParams(filters?: PlanningGoalListFilters): Record<string, string> {
+    if (!filters) {
+      return {};
+    }
+
+    const params: Record<string, string> = {};
+    if (filters.query && filters.query.trim().length > 0) {
+      params['query'] = filters.query.trim();
+    }
+    if (filters.status && filters.status !== 'ALL') {
+      params['status'] = filters.status;
+    }
+    if (filters.startDate && filters.startDate.trim().length > 0) {
+      params['startDate'] = filters.startDate;
+    }
+    if (filters.endDate && filters.endDate.trim().length > 0) {
+      params['endDate'] = filters.endDate;
+    }
+    return params;
+  }
+
+  private buildTrashParams(filters?: TrashListFilters): Record<string, string> {
+    if (!filters) {
+      return {};
+    }
+
+    const params: Record<string, string> = {};
+    if (filters.query && filters.query.trim().length > 0) {
+      params['query'] = filters.query.trim();
+    }
+    if (filters.entityType && filters.entityType !== 'ALL') {
+      params['entityType'] = filters.entityType;
+    }
+    if (filters.startDate && filters.startDate.trim().length > 0) {
+      params['startDate'] = filters.startDate;
+    }
+    if (filters.endDate && filters.endDate.trim().length > 0) {
+      params['endDate'] = filters.endDate;
+    }
+    return params;
+  }
+
+  private buildAuditParams(filters?: AuditEventListFilters): Record<string, string> {
+    if (!filters) {
+      return {};
+    }
+
+    const params: Record<string, string> = {};
+    if (filters.startDate && filters.startDate.trim().length > 0) {
+      params['startDate'] = filters.startDate;
+    }
+    if (filters.endDate && filters.endDate.trim().length > 0) {
+      params['endDate'] = filters.endDate;
+    }
+    if (filters.entityType && filters.entityType !== 'ALL') {
+      params['entityType'] = filters.entityType;
+    }
+    if (filters.action && filters.action !== 'ALL') {
+      params['action'] = filters.action;
+    }
+    if (filters.transactionBankAccountId && filters.transactionBankAccountId !== 'ALL') {
+      params['transactionBankAccountId'] = filters.transactionBankAccountId;
+    }
+    if (filters.statementImportBankAccountId && filters.statementImportBankAccountId !== 'ALL') {
+      params['statementImportBankAccountId'] = filters.statementImportBankAccountId;
+    }
+    if (filters.name && filters.name.trim().length > 0) {
+      params['name'] = filters.name.trim();
+    }
+    if (typeof filters.minValue === 'number' && !Number.isNaN(filters.minValue)) {
+      params['minValue'] = String(filters.minValue);
+    }
+    if (typeof filters.maxValue === 'number' && !Number.isNaN(filters.maxValue)) {
+      params['maxValue'] = String(filters.maxValue);
+    }
+    return params;
   }
 
   getDashboardSummary(startDate: string, endDate: string): Observable<DashboardSummary> {

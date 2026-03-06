@@ -77,9 +77,6 @@ export class AppComponent {
   }
 
   protected onImportWidgetMouseLeave(): void {
-    if (this.importProgress().running) {
-      return;
-    }
     this.importWidgetExpanded.set(false);
   }
 

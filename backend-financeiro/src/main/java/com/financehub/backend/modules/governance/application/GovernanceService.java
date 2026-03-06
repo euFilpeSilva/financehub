@@ -1,6 +1,7 @@
 package com.financehub.backend.modules.governance.application;
 
 import com.financehub.backend.modules.bills.infrastructure.BillSpringDataRepository;
+import com.financehub.backend.modules.bankaccounts.infrastructure.BankAccountJpaEntity;
 import com.financehub.backend.modules.bankaccounts.infrastructure.BankAccountSpringDataRepository;
 import com.financehub.backend.modules.governance.api.dto.AppPreferencesRequest;
 import com.financehub.backend.modules.governance.api.dto.RetentionSettingsRequest;
@@ -19,6 +20,8 @@ import com.financehub.backend.modules.planning.infrastructure.PlanningGoalSpring
 import com.financehub.backend.modules.spending.infrastructure.SpendingGoalSpringDataRepository;
 import com.financehub.backend.shared.application.port.AuditPort;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -90,6 +93,37 @@ public class GovernanceService implements AuditPort {
   @Transactional(readOnly = true)
   public List<AuditEvent> listAuditEvents() {
     return auditEventRepository.findAllByOrderByTimestampDesc().stream().map(this::toDomain).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<AuditEvent> listAuditEventsFiltered(
+    LocalDate startDate,
+    LocalDate endDate,
+    String entityType,
+    String action,
+    String transactionBankAccountId,
+    String statementImportBankAccountId,
+    String name,
+    Double minValue,
+    Double maxValue
+  ) {
+    String normalizedEntityType = normalizeOption(entityType);
+    String normalizedAction = normalizeOption(action);
+    String normalizedTransactionBankAccountId = normalizeOption(transactionBankAccountId);
+    String normalizedStatementImportBankAccountId = normalizeOption(statementImportBankAccountId);
+    String normalizedName = normalizeText(name);
+
+    List<BankAccountJpaEntity> bankAccounts = bankAccountRepository.findAll();
+
+    return listAuditEvents().stream()
+      .filter(event -> matchesAuditDateRange(event, startDate, endDate))
+      .filter(event -> matchesAuditEntityType(event, normalizedEntityType))
+      .filter(event -> matchesAuditAction(event, normalizedAction))
+      .filter(event -> matchesAuditName(event, normalizedName))
+      .filter(event -> matchesAuditAmount(event, minValue, maxValue))
+      .filter(event -> matchesAuditTransactionBank(event, normalizedTransactionBankAccountId))
+      .filter(event -> matchesAuditStatementImportBank(event, normalizedStatementImportBankAccountId, bankAccounts))
+      .toList();
   }
 
   @Transactional(readOnly = true)
@@ -215,6 +249,133 @@ public class GovernanceService implements AuditPort {
       entity.getAmount() == null ? null : entity.getAmount().doubleValue(),
       entity.getTimestamp()
     );
+  }
+
+  private boolean matchesAuditDateRange(AuditEvent event, LocalDate startDate, LocalDate endDate) {
+    LocalDate eventDate = event.timestamp().atZone(ZoneOffset.UTC).toLocalDate();
+    if (startDate != null && eventDate.isBefore(startDate)) {
+      return false;
+    }
+    if (endDate != null && eventDate.isAfter(endDate)) {
+      return false;
+    }
+    return true;
+  }
+
+  private boolean matchesAuditEntityType(AuditEvent event, String normalizedEntityType) {
+    if (normalizedEntityType.isBlank() || "ALL".equals(normalizedEntityType)) {
+      return true;
+    }
+    return normalizeOption(event.entityType()).equals(normalizedEntityType);
+  }
+
+  private boolean matchesAuditAction(AuditEvent event, String normalizedAction) {
+    if (normalizedAction.isBlank() || "ALL".equals(normalizedAction)) {
+      return true;
+    }
+    return normalizeOption(event.action()).equals(normalizedAction);
+  }
+
+  private boolean matchesAuditName(AuditEvent event, String normalizedName) {
+    if (normalizedName.isBlank()) {
+      return true;
+    }
+    return normalizeText(event.message()).contains(normalizedName);
+  }
+
+  private boolean matchesAuditAmount(AuditEvent event, Double minValue, Double maxValue) {
+    if (minValue == null && maxValue == null) {
+      return true;
+    }
+    if (event.amount() == null) {
+      return false;
+    }
+    if (minValue != null && event.amount() < minValue) {
+      return false;
+    }
+    if (maxValue != null && event.amount() > maxValue) {
+      return false;
+    }
+    return true;
+  }
+
+  private boolean matchesAuditTransactionBank(AuditEvent event, String normalizedTransactionBankAccountId) {
+    if (normalizedTransactionBankAccountId.isBlank() || "ALL".equals(normalizedTransactionBankAccountId)) {
+      return true;
+    }
+    String eventBankId = resolveTransactionBankAccountId(event);
+    return eventBankId != null && normalizeOption(eventBankId).equals(normalizedTransactionBankAccountId);
+  }
+
+  private boolean matchesAuditStatementImportBank(
+    AuditEvent event,
+    String normalizedStatementImportBankAccountId,
+    List<BankAccountJpaEntity> bankAccounts
+  ) {
+    if (normalizedStatementImportBankAccountId.isBlank() || "ALL".equals(normalizedStatementImportBankAccountId)) {
+      return true;
+    }
+    if (!"STATEMENT".equals(normalizeOption(event.entityType())) || !"IMPORT".equals(normalizeOption(event.action()))) {
+      return false;
+    }
+    String eventBankId = resolveStatementImportBankAccountId(event, bankAccounts);
+    return eventBankId != null && normalizeOption(eventBankId).equals(normalizedStatementImportBankAccountId);
+  }
+
+  private String resolveTransactionBankAccountId(AuditEvent event) {
+    String normalizedEntityType = normalizeOption(event.entityType());
+    if ("BILL".equals(normalizedEntityType)) {
+      return billRepository.findById(event.entityId()).map(entity -> entity.getBankAccountId()).orElse(null);
+    }
+    if ("INCOME".equals(normalizedEntityType)) {
+      return incomeRepository.findById(event.entityId()).map(entity -> entity.getBankAccountId()).orElse(null);
+    }
+    return null;
+  }
+
+  private String resolveStatementImportBankAccountId(AuditEvent event, List<BankAccountJpaEntity> bankAccounts) {
+    for (BankAccountJpaEntity account : bankAccounts) {
+      if (account.getId().equals(event.entityId())) {
+        return account.getId();
+      }
+    }
+
+    String digits = (event.entityId() + " " + event.message()).replaceAll("\\D", "");
+    for (BankAccountJpaEntity account : bankAccounts) {
+      String accountDigits = account.getAccountId() == null ? "" : account.getAccountId().replaceAll("\\D", "");
+      if (accountDigits.length() >= 4 && digits.contains(accountDigits)) {
+        return account.getId();
+      }
+    }
+
+    String normalizedEventText = normalizeText(event.entityId() + " " + event.message());
+    for (BankAccountJpaEntity account : bankAccounts) {
+      String normalizedLabel = normalizeText(account.getLabel());
+      if (!normalizedLabel.isBlank() && normalizedEventText.contains(normalizedLabel)) {
+        return account.getId();
+      }
+    }
+
+    return null;
+  }
+
+  private String normalizeOption(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return value.trim().toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizeText(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+      .replaceAll("\\p{M}", "")
+      .toUpperCase(Locale.ROOT)
+      .replaceAll("[^A-Z0-9 ]", " ")
+      .replaceAll("\\s{2,}", " ")
+      .trim();
   }
 
   private AppPreferences toDomain(AppPreferencesJpaEntity entity) {

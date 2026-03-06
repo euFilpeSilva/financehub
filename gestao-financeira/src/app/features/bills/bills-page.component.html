@@ -145,6 +145,13 @@
           <td class="px-3 py-3">
             <p class="font-semibold text-slate-800">{{ bill.description }}</p>
             <p class="text-xs text-slate-500">{{ bill.category }} <span *ngIf="bill.recurring">| recorrente</span></p>
+            <span
+              *ngIf="showBankFlag()"
+              class="mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+              [ngClass]="resolveBillBankBadgeClass(bill)"
+            >
+              Banco: {{ resolveBillBankLabel(bill) }}
+            </span>
           </td>
           <td class="px-3 py-3 text-slate-600">{{ bill.dueDate | date:'dd/MM/yyyy' }}</td>
           <td class="px-3 py-3 font-semibold text-slate-800">{{ bill.amount | currency:'BRL':'symbol':'1.2-2' }}</td>
@@ -193,6 +200,13 @@
         <div>
           <h3 class="font-semibold text-slate-900">{{ bill.description }}</h3>
           <p class="text-xs text-slate-500">{{ bill.category }} | {{ bill.dueDate | date:'dd/MM/yyyy' }}</p>
+          <span
+            *ngIf="showBankFlag()"
+            class="mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+            [ngClass]="resolveBillBankBadgeClass(bill)"
+          >
+            Banco: {{ resolveBillBankLabel(bill) }}
+          </span>
         </div>
         <strong class="text-slate-800">{{ bill.amount | currency:'BRL':'symbol':'1.2-2' }}</strong>
       </div>

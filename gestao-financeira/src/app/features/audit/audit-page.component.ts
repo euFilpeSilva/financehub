@@ -1,5 +1,5 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { History, LucideAngularModule } from 'lucide-angular';
@@ -7,6 +7,7 @@ import { startWith } from 'rxjs/operators';
 import { getEntityLabel } from '../../core/constants/finance.constants';
 import { AuditEvent } from '../../models/finance.models';
 import { FinanceFacade } from '../../services/finance.facade';
+import { AuditEventListFilters } from '../../services/finance.gateway';
 import { CurrencyMaskDirective } from '../../shared/directives/currency-mask.directive';
 import { FilterPanelComponent } from '../../shared/filter-panel/filter-panel.component';
 
@@ -38,84 +39,31 @@ export class AuditPageComponent {
     this.filterForm.valueChanges.pipe(startWith(this.filterForm.getRawValue())),
     { initialValue: this.filterForm.getRawValue() }
   );
+  private readonly backendFilteredEvents = signal<AuditEvent[]>([]);
 
   protected readonly filteredEvents = computed(() => {
     const values = this.filterValues();
-    const start = values.startDate || '';
-    const end = values.endDate || '';
-    const entityType = values.entityType || 'ALL';
-    const action = values.action || 'ALL';
-    const transactionBankAccountId = values.transactionBankAccountId || 'ALL';
-    const statementImportBankAccountId = values.statementImportBankAccountId || 'ALL';
-    const nameQuery = (values.name ?? '').trim().toLowerCase();
-    const minValue = values.minValue !== null ? Number(values.minValue) : null;
-    const maxValue = values.maxValue !== null ? Number(values.maxValue) : null;
     const sortBy = this.sortBy();
     const sortDirection = this.sortDirection();
 
-    const filtered = this.facade.auditEvents().filter((event) => {
-      const eventDate = event.timestamp.slice(0, 10);
-      if (start && eventDate < start) {
-        return false;
-      }
-      if (end && eventDate > end) {
-        return false;
-      }
-
-      if (entityType !== 'ALL' && event.entityType !== entityType) {
-        return false;
-      }
-      if (action !== 'ALL' && event.action !== action) {
-        return false;
-      }
-
-      if (transactionBankAccountId !== 'ALL') {
-        const eventBankId = this.resolveTransactionBankAccountId(event);
-        if (!eventBankId || eventBankId !== transactionBankAccountId) {
-          return false;
-        }
-      }
-
-      if (statementImportBankAccountId !== 'ALL') {
-        if (event.entityType !== 'statement' || event.action !== 'import') {
-          return false;
-        }
-        const importBankId = this.resolveStatementImportBankAccountId(event);
-        if (!importBankId || importBankId !== statementImportBankAccountId) {
-          return false;
-        }
-      }
-
-      if (nameQuery) {
-        const target = `${event.entityName ?? ''} ${event.message}`.toLowerCase();
-        if (!target.includes(nameQuery)) {
-          return false;
-        }
-      }
-
-      if (minValue !== null || maxValue !== null) {
-        if (event.amount === undefined) {
-          return false;
-        }
-        if (minValue !== null && event.amount < minValue) {
-          return false;
-        }
-        if (maxValue !== null && event.amount > maxValue) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
     const direction = sortDirection === 'asc' ? 1 : -1;
-    return filtered.slice().sort((first, second) => {
+    return this.backendFilteredEvents().slice().sort((first, second) => {
       const compare = this.compareAuditEvent(first, second, sortBy);
       return compare * direction;
     });
   });
 
-  constructor(protected readonly facade: FinanceFacade) {}
+  constructor(protected readonly facade: FinanceFacade) {
+    effect(() => {
+      this.filterValues();
+      this.fetchAuditEventsFromBackend();
+    });
+
+    effect(() => {
+      this.facade.auditEvents();
+      this.fetchAuditEventsFromBackend();
+    });
+  }
 
   protected applyFilters(): void {
     this.filterForm.updateValueAndValidity();
@@ -195,53 +143,26 @@ export class AuditPageComponent {
     return this.sortDirection() === 'asc' ? '▲' : '▼';
   }
 
-  private resolveTransactionBankAccountId(event: AuditEvent): string | null {
-    if (event.entityType === 'bill') {
-      return this.facade.allBills().find((item) => item.id === event.entityId)?.bankAccountId ?? null;
-    }
-    if (event.entityType === 'income') {
-      return this.facade.allIncomes().find((item) => item.id === event.entityId)?.bankAccountId ?? null;
-    }
-    return null;
+  private fetchAuditEventsFromBackend(): void {
+    const filters = this.toAuditFilters();
+    this.facade.listAuditEventsFiltered(filters).subscribe({
+      next: (items) => this.backendFilteredEvents.set(items),
+      error: () => this.backendFilteredEvents.set([])
+    });
   }
 
-  private resolveStatementImportBankAccountId(event: AuditEvent): string | null {
-    const accounts = this.facade.bankAccounts();
-
-    const byEntityId = accounts.find((account) => account.id === event.entityId);
-    if (byEntityId) {
-      return byEntityId.id;
-    }
-
-    const digits = `${event.entityId} ${event.message}`.replace(/\D/g, '');
-    for (const account of accounts) {
-      const accountDigits = (account.accountId || '').replace(/\D/g, '');
-      if (accountDigits.length >= 4 && digits.includes(accountDigits)) {
-        return account.id;
-      }
-    }
-
-    const normalized = this.normalizeText(`${event.entityId} ${event.message}`);
-    for (const account of accounts) {
-      const label = this.normalizeText(account.label || '');
-      if (label && normalized.includes(label)) {
-        return account.id;
-      }
-    }
-
-    return null;
-  }
-
-  private normalizeText(value: string): string {
-    if (!value) {
-      return '';
-    }
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9 ]/g, ' ')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
+  private toAuditFilters(): AuditEventListFilters {
+    const values = this.filterValues();
+    return {
+      startDate: values.startDate || '',
+      endDate: values.endDate || '',
+      entityType: values.entityType || 'ALL',
+      action: values.action || 'ALL',
+      transactionBankAccountId: values.transactionBankAccountId || 'ALL',
+      statementImportBankAccountId: values.statementImportBankAccountId || 'ALL',
+      name: (values.name ?? '').trim(),
+      minValue: values.minValue,
+      maxValue: values.maxValue
+    };
   }
 }

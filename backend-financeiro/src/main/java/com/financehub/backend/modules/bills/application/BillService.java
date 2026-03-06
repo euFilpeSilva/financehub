@@ -1,31 +1,77 @@
 package com.financehub.backend.modules.bills.application;
 
+import com.financehub.backend.modules.bankaccounts.application.BankAccountService;
+import com.financehub.backend.modules.bankaccounts.domain.BankAccount;
 import com.financehub.backend.modules.bills.api.dto.BillRequest;
 import com.financehub.backend.modules.bills.domain.Bill;
 import com.financehub.backend.modules.bills.domain.BillRepository;
 import com.financehub.backend.modules.governance.application.TrashService;
 import com.financehub.backend.shared.api.NotFoundException;
 import com.financehub.backend.shared.application.port.AuditPort;
+import java.text.Normalizer;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
 public class BillService {
   private final BillRepository repository;
+  private final BankAccountService bankAccountService;
   private final AuditPort auditPort;
   private final TrashService trashService;
 
-  public BillService(BillRepository repository, AuditPort auditPort, TrashService trashService) {
+  public BillService(
+    BillRepository repository,
+    BankAccountService bankAccountService,
+    AuditPort auditPort,
+    TrashService trashService
+  ) {
     this.repository = repository;
+    this.bankAccountService = bankAccountService;
     this.auditPort = auditPort;
     this.trashService = trashService;
   }
 
   public List<Bill> listAll() {
     return repository.findAll().stream()
+      .sorted(Comparator.comparing(Bill::getDueDate))
+      .toList();
+  }
+
+  public List<Bill> listFiltered(
+    String query,
+    String category,
+    String bankAccountId,
+    String status,
+    String recurring,
+    LocalDate startDate,
+    LocalDate endDate
+  ) {
+    String normalizedQuery = normalizeText(query);
+    String normalizedCategory = normalizeOption(category);
+    String normalizedBankAccountId = normalizeOption(bankAccountId);
+    String normalizedStatus = normalizeOption(status);
+    String normalizedRecurring = normalizeOption(recurring);
+
+    Optional<BankAccount> selectedBank = resolveSelectedBank(normalizedBankAccountId);
+    Set<String> selectedBankTokens = selectedBank
+      .map(bank -> resolveBankTokens(bank.getLabel(), bank.getBankId()))
+      .orElseGet(Set::of);
+
+    return repository.findAll().stream()
+      .filter(bill -> matchesQuery(normalizedQuery, bill.getDescription()))
+      .filter(bill -> matchesCategory(normalizedCategory, bill.getCategory()))
+      .filter(bill -> matchesStatus(normalizedStatus, bill.isPaid()))
+      .filter(bill -> matchesRecurring(normalizedRecurring, bill.isRecurring()))
+      .filter(bill -> matchesDateRange(bill.getDueDate(), startDate, endDate))
+      .filter(bill -> matchesBankFilter(normalizedBankAccountId, selectedBank.isPresent(), selectedBankTokens, bill))
       .sorted(Comparator.comparing(Bill::getDueDate))
       .toList();
   }
@@ -124,5 +170,132 @@ public class BillService {
       return null;
     }
     return value.trim();
+  }
+
+  private boolean matchesQuery(String normalizedQuery, String description) {
+    if (normalizedQuery.isBlank()) {
+      return true;
+    }
+    return normalizeText(description).contains(normalizedQuery);
+  }
+
+  private boolean matchesCategory(String normalizedCategory, String category) {
+    if (normalizedCategory.isBlank() || "ALL".equals(normalizedCategory)) {
+      return true;
+    }
+    return normalizeText(category).equals(normalizedCategory);
+  }
+
+  private boolean matchesStatus(String normalizedStatus, boolean paid) {
+    if (normalizedStatus.isBlank() || "ALL".equals(normalizedStatus)) {
+      return true;
+    }
+    if ("PAID".equals(normalizedStatus)) {
+      return paid;
+    }
+    if ("PENDING".equals(normalizedStatus)) {
+      return !paid;
+    }
+    return true;
+  }
+
+  private boolean matchesRecurring(String normalizedRecurring, boolean recurring) {
+    if (normalizedRecurring.isBlank() || "ALL".equals(normalizedRecurring)) {
+      return true;
+    }
+    if ("YES".equals(normalizedRecurring)) {
+      return recurring;
+    }
+    if ("NO".equals(normalizedRecurring)) {
+      return !recurring;
+    }
+    return true;
+  }
+
+  private boolean matchesDateRange(LocalDate dueDate, LocalDate startDate, LocalDate endDate) {
+    if (startDate != null && dueDate.isBefore(startDate)) {
+      return false;
+    }
+    if (endDate != null && dueDate.isAfter(endDate)) {
+      return false;
+    }
+    return true;
+  }
+
+  private Optional<BankAccount> resolveSelectedBank(String normalizedBankAccountId) {
+    if (normalizedBankAccountId.isBlank() || "ALL".equals(normalizedBankAccountId)) {
+      return Optional.empty();
+    }
+    return bankAccountService.listAll().stream()
+      .filter(bank -> normalizedBankAccountId.equals(bank.getId()))
+      .findFirst();
+  }
+
+  private boolean matchesBankFilter(
+    String normalizedBankAccountId,
+    boolean hasSelectedBank,
+    Set<String> selectedBankTokens,
+    Bill bill
+  ) {
+    if (normalizedBankAccountId.isBlank() || "ALL".equals(normalizedBankAccountId)) {
+      return true;
+    }
+
+    if (normalizedBankAccountId.equals(normalizeOptionalId(bill.getBankAccountId()))) {
+      return true;
+    }
+
+    if (bill.getBankAccountId() != null && !bill.getBankAccountId().isBlank()) {
+      return false;
+    }
+
+    if (!hasSelectedBank || selectedBankTokens.isEmpty()) {
+      return false;
+    }
+
+    String normalizedDescription = normalizeText(bill.getDescription());
+    return selectedBankTokens.stream().anyMatch(normalizedDescription::contains);
+  }
+
+  private Set<String> resolveBankTokens(String label, String bankId) {
+    String normalizedLabel = normalizeText(label);
+    Set<String> tokens = new HashSet<>();
+
+    for (String part : normalizedLabel.split(" ")) {
+      if (part.length() >= 3) {
+        tokens.add(part);
+      }
+    }
+
+    String digits = bankId == null ? "" : bankId.replaceAll("\\D", "");
+    if (!digits.isBlank()) {
+      tokens.add(digits);
+    }
+
+    if (normalizedLabel.contains("NUBANK") || "260".equals(digits)) {
+      tokens.add("NUBANK");
+      tokens.add("NU PAGAMENTOS");
+    }
+
+    return tokens;
+  }
+
+  private String normalizeOption(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return value.trim().toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizeText(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return Normalizer.normalize(value, Normalizer.Form.NFD)
+      .replaceAll("\\p{M}", "")
+      .toUpperCase(Locale.ROOT)
+      .replaceAll("[^A-Z0-9 ]", " ")
+      .replaceAll("\\s{2,}", " ")
+      .trim();
   }
 }

@@ -1,1 +1,22 @@
+.import-progress-panel {
+	transform-origin: top right;
+	animation: import-widget-reveal 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes import-widget-reveal {
+	from {
+		opacity: 0;
+		transform: translateY(-6px) scale(0.97);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.import-progress-panel {
+		animation: none;
+	}
+}
 

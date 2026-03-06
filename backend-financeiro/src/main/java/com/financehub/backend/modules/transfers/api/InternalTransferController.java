@@ -2,6 +2,8 @@ package com.financehub.backend.modules.transfers.api;
 
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferLinkRequest;
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferDetectionRequest;
+import com.financehub.backend.modules.transfers.api.dto.InternalTransferReclassificationRequest;
+import com.financehub.backend.modules.transfers.api.dto.InternalTransferReclassificationResponse;
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferSuggestionResponse;
 import com.financehub.backend.modules.transfers.application.InternalTransferService;
 import jakarta.validation.Valid;
@@ -38,5 +40,16 @@ public class InternalTransferController {
       toleranceDays,
       request.autoApply()
     );
+  }
+
+  @PostMapping("/internal/reclassify-legacy")
+  public InternalTransferReclassificationResponse reclassifyLegacyTransfers(
+    @RequestBody(required = false) InternalTransferReclassificationRequest request
+  ) {
+    String ownerName = request == null ? null : request.ownerName();
+    String ownerCpf = request == null ? null : request.ownerCpf();
+    boolean includePicpay = request == null || request.includePicpay() == null || request.includePicpay();
+    boolean includeLegacyBroker = request == null || request.includeLegacyBroker() == null || request.includeLegacyBroker();
+    return service.reclassifyLegacyTransfers(ownerName, ownerCpf, includePicpay, includeLegacyBroker);
   }
 }

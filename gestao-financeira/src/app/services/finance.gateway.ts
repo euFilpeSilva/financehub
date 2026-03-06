@@ -17,19 +17,66 @@ import {
   TrashItem
 } from '../models/finance.models';
 
+export interface BillListFilters {
+  query?: string;
+  category?: string;
+  bankAccountId?: string;
+  status?: string;
+  recurring?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface IncomeListFilters {
+  query?: string;
+  category?: string;
+  bankAccountId?: string;
+  recurring?: string;
+  startDate?: string;
+  endDate?: string;
+  minAmount?: number | null;
+  maxAmount?: number | null;
+}
+
+export interface PlanningGoalListFilters {
+  query?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface TrashListFilters {
+  query?: string;
+  entityType?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AuditEventListFilters {
+  startDate?: string;
+  endDate?: string;
+  entityType?: string;
+  action?: string;
+  transactionBankAccountId?: string;
+  statementImportBankAccountId?: string;
+  name?: string;
+  minValue?: number | null;
+  maxValue?: number | null;
+}
+
 export interface FinanceGateway {
-  listBills(): Observable<BillRecord[]>;
+  listBills(filters?: BillListFilters): Observable<BillRecord[]>;
   createBill(payload: Omit<BillRecord, 'id'>): Observable<BillRecord>;
   updateBill(payload: BillRecord): Observable<BillRecord>;
   deleteBill(id: string): Observable<void>;
   createRecurringBills(month: string): Observable<BillRecord[]>;
 
-  listIncomes(): Observable<IncomeEntry[]>;
+  listIncomes(filters?: IncomeListFilters): Observable<IncomeEntry[]>;
   createIncome(payload: Omit<IncomeEntry, 'id'>): Observable<IncomeEntry>;
   updateIncome(payload: IncomeEntry): Observable<IncomeEntry>;
   deleteIncome(id: string): Observable<void>;
 
-  listGoals(): Observable<PlanningGoal[]>;
+  listGoals(filters?: PlanningGoalListFilters): Observable<PlanningGoal[]>;
   createGoal(payload: Omit<PlanningGoal, 'id'>): Observable<PlanningGoal>;
   updateGoal(payload: PlanningGoal): Observable<PlanningGoal>;
   deleteGoal(id: string): Observable<void>;
@@ -45,7 +92,7 @@ export interface FinanceGateway {
   updateSpendingGoal(payload: SpendingGoal): Observable<SpendingGoal>;
   deleteSpendingGoal(id: string): Observable<void>;
 
-  listTrashItems(): Observable<TrashItem[]>;
+  listTrashItems(filters?: TrashListFilters): Observable<TrashItem[]>;
   restoreTrashItem(trashId: string): Observable<void>;
   purgeTrashItem(trashId: string): Observable<void>;
 
@@ -54,7 +101,7 @@ export interface FinanceGateway {
   getAppPreferences(): Observable<AppPreferences>;
   updateAppPreferences(payload: AppPreferences): Observable<AppPreferences>;
 
-  listAuditEvents(): Observable<AuditEvent[]>;
+  listAuditEvents(filters?: AuditEventListFilters): Observable<AuditEvent[]>;
   getDashboardSummary(startDate: string, endDate: string): Observable<DashboardSummary>;
   getAccountReconciliation(
     bankAccountId: string,

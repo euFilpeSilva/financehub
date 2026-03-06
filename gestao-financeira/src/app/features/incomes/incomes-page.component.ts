@@ -6,6 +6,7 @@ import { LucideAngularModule, Pencil, Plus, Trash2, X } from 'lucide-angular';
 import { startWith } from 'rxjs/operators';
 import { IncomeEntry } from '../../models/finance.models';
 import { FinanceFacade } from '../../services/finance.facade';
+import { IncomeListFilters } from '../../services/finance.gateway';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { CurrencyMaskDirective } from '../../shared/directives/currency-mask.directive';
 import { FilterPanelComponent } from '../../shared/filter-panel/filter-panel.component';
@@ -57,53 +58,14 @@ export class IncomesPageComponent {
     this.filterForm.valueChanges.pipe(startWith(this.filterForm.getRawValue())),
     { initialValue: this.filterForm.getRawValue() }
   );
+  private readonly backendFilteredIncomes = signal<IncomeEntry[]>([]);
   protected editingIncomeId: string | null = null;
   protected readonly filteredIncomes = computed(() => {
-    const filters = this.filterValues();
-    const query = (filters.query ?? '').trim().toLowerCase();
-    const category = filters.category ?? 'ALL';
-    const bankAccountId = filters.bankAccountId ?? 'ALL';
-    const recurring = filters.recurring ?? 'ALL';
-    const startDate = filters.startDate ?? '';
-    const endDate = filters.endDate ?? '';
-    const minAmount = filters.minAmount !== null ? Number(filters.minAmount) : null;
-    const maxAmount = filters.maxAmount !== null ? Number(filters.maxAmount) : null;
     const sortBy = this.sortBy();
     const sortDirection = this.sortDirection();
 
-    const filtered = this.facade.allIncomes().filter((income) => {
-      if (query && !income.source.toLowerCase().includes(query)) {
-        return false;
-      }
-      if (category !== 'ALL' && income.category !== category) {
-        return false;
-      }
-      if (!this.matchesBankFilter(bankAccountId, income)) {
-        return false;
-      }
-      if (recurring === 'YES' && !income.recurring) {
-        return false;
-      }
-      if (recurring === 'NO' && income.recurring) {
-        return false;
-      }
-      if (startDate && income.receivedAt < startDate) {
-        return false;
-      }
-      if (endDate && income.receivedAt > endDate) {
-        return false;
-      }
-      if (minAmount !== null && income.amount < minAmount) {
-        return false;
-      }
-      if (maxAmount !== null && income.amount > maxAmount) {
-        return false;
-      }
-      return true;
-    });
-
     const direction = sortDirection === 'asc' ? 1 : -1;
-    return filtered.slice().sort((first, second) => {
+    return this.backendFilteredIncomes().slice().sort((first, second) => {
       const compare = this.compareIncome(first, second, sortBy);
       return compare * direction;
     });
@@ -112,6 +74,7 @@ export class IncomesPageComponent {
   protected readonly filteredIncomesTotalAmount = computed(() =>
     this.filteredIncomes().reduce((sum, income) => sum + income.amount, 0)
   );
+  protected readonly showBankFlag = computed(() => (this.filterValues().bankAccountId ?? 'ALL') === 'ALL');
 
   constructor(protected readonly facade: FinanceFacade) {
     effect(() => {
@@ -123,6 +86,16 @@ export class IncomesPageComponent {
           receivedAt: this.dateForDayInCurrentMonth(prefs.defaultIncomeReceivedDay)
         });
       }
+    });
+
+    effect(() => {
+      this.filterValues();
+      this.fetchIncomesFromBackend();
+    });
+
+    effect(() => {
+      this.facade.allIncomes();
+      this.fetchIncomesFromBackend();
     });
   }
 
@@ -290,27 +263,50 @@ export class IncomesPageComponent {
     return first.receivedAt.localeCompare(second.receivedAt);
   }
 
-  private matchesBankFilter(selectedBankId: string, income: IncomeEntry): boolean {
-    if (selectedBankId === 'ALL') {
-      return true;
-    }
-
-    if ((income.bankAccountId ?? null) === selectedBankId) {
-      return true;
-    }
-
+  protected resolveIncomeBankLabel(income: IncomeEntry): string {
     if (income.bankAccountId) {
-      return false;
-    }
-
-    const bank = this.bankFiltersMap().get(selectedBankId);
-    if (!bank) {
-      return false;
+      const explicit = this.bankFiltersMap().get(income.bankAccountId);
+      if (explicit) {
+        return explicit.label;
+      }
     }
 
     const normalizedSource = this.normalizeText(income.source);
-    const tokens = this.resolveBankTokens(bank.label, bank.bankId);
-    return tokens.some((token) => normalizedSource.includes(token));
+    for (const account of this.facade.bankAccounts()) {
+      const tokens = this.resolveBankTokens(account.label, account.bankId);
+      if (tokens.some((token) => normalizedSource.includes(token))) {
+        return account.label;
+      }
+    }
+
+    return 'Banco nao identificado';
+  }
+
+  protected resolveIncomeBankBadgeClass(income: IncomeEntry): string {
+    const label = this.resolveIncomeBankLabel(income);
+    return this.resolveBankBadgeClass(label);
+  }
+
+  private fetchIncomesFromBackend(): void {
+    const filters = this.toIncomeListFilters();
+    this.facade.listIncomesFiltered(filters).subscribe({
+      next: (items) => this.backendFilteredIncomes.set(items),
+      error: () => this.backendFilteredIncomes.set([])
+    });
+  }
+
+  private toIncomeListFilters(): IncomeListFilters {
+    const filters = this.filterValues();
+    return {
+      query: (filters.query ?? '').trim(),
+      category: filters.category ?? 'ALL',
+      bankAccountId: filters.bankAccountId ?? 'ALL',
+      recurring: filters.recurring ?? 'ALL',
+      startDate: filters.startDate ?? '',
+      endDate: filters.endDate ?? '',
+      minAmount: filters.minAmount,
+      maxAmount: filters.maxAmount
+    };
   }
 
   private resolveBankTokens(label: string, bankId: string): string[] {
@@ -340,6 +336,43 @@ export class IncomesPageComponent {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toUpperCase();
+  }
+
+  private resolveBankBadgeClass(label: string): string {
+    const normalized = this.normalizeText(label);
+
+    if (normalized.includes('ITAU')) {
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    }
+    if (normalized.includes('NUBANK') || normalized.includes('NU PAGAMENTOS')) {
+      return 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700';
+    }
+    if (normalized.includes('MERCADO PAGO') || normalized.includes('MERCADOPAGO')) {
+      return 'border-cyan-200 bg-cyan-50 text-cyan-700';
+    }
+    if (normalized.includes('INTER')) {
+      return 'border-orange-200 bg-orange-50 text-orange-700';
+    }
+    if (normalized.includes('C6')) {
+      return 'border-zinc-300 bg-zinc-100 text-zinc-800';
+    }
+    if (normalized.includes('SANTANDER')) {
+      return 'border-rose-200 bg-rose-50 text-rose-700';
+    }
+    if (normalized.includes('BRADESCO')) {
+      return 'border-pink-200 bg-pink-50 text-pink-700';
+    }
+    if (normalized.includes('CAIXA')) {
+      return 'border-blue-200 bg-blue-50 text-blue-700';
+    }
+    if (normalized.includes('BANCO DO BRASIL') || normalized === 'BB' || normalized.includes(' BB ')) {
+      return 'border-yellow-200 bg-yellow-50 text-yellow-700';
+    }
+    if (normalized.includes('PICPAY') || normalized.includes('PIC PAY')) {
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    }
+
+    return 'border-slate-200 bg-slate-50 text-slate-700';
   }
 }
 

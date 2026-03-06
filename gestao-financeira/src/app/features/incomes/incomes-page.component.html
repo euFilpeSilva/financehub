@@ -127,6 +127,13 @@
           <td class="px-3 py-3">
             <p class="font-semibold text-slate-800">{{ income.source }}</p>
             <p class="text-xs text-slate-500">{{ income.category }}</p>
+            <span
+              *ngIf="showBankFlag()"
+              class="mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+              [ngClass]="resolveIncomeBankBadgeClass(income)"
+            >
+              Banco: {{ resolveIncomeBankLabel(income) }}
+            </span>
           </td>
           <td class="px-3 py-3 text-slate-600">{{ income.receivedAt | date:'dd/MM/yyyy' }}</td>
           <td class="px-3 py-3 font-semibold text-brand-700">{{ income.amount | currency:'BRL':'symbol':'1.2-2' }}</td>
@@ -154,6 +161,13 @@
         <div>
           <p class="font-semibold text-slate-800">{{ income.source }}</p>
           <p class="text-xs text-slate-500">{{ income.category }} | {{ income.receivedAt | date:'dd/MM/yyyy' }}</p>
+          <span
+            *ngIf="showBankFlag()"
+            class="mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+            [ngClass]="resolveIncomeBankBadgeClass(income)"
+          >
+            Banco: {{ resolveIncomeBankLabel(income) }}
+          </span>
         </div>
         <div class="text-right">
           <strong class="text-sm text-brand-700">{{ income.amount | currency:'BRL':'symbol':'1.2-2' }}</strong>

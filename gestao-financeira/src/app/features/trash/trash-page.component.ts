@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { LucideAngularModule, RotateCcw, Trash2 } from 'lucide-angular';
@@ -7,6 +7,7 @@ import { startWith } from 'rxjs/operators';
 import { getEntityLabel } from '../../core/constants/finance.constants';
 import { TrashItem } from '../../models/finance.models';
 import { FinanceFacade } from '../../services/finance.facade';
+import { TrashListFilters } from '../../services/finance.gateway';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { FilterPanelComponent } from '../../shared/filter-panel/filter-panel.component';
 
@@ -34,41 +35,30 @@ export class TrashPageComponent {
     this.filterForm.valueChanges.pipe(startWith(this.filterForm.getRawValue())),
     { initialValue: this.filterForm.getRawValue() }
   );
+  private readonly backendFilteredTrashItems = signal<TrashItem[]>([]);
 
   protected readonly filteredTrashItems = computed(() => {
-    const filters = this.filterValues();
-    const query = (filters.query ?? '').trim().toLowerCase();
-    const entityType = filters.entityType ?? 'ALL';
-    const startDate = filters.startDate ?? '';
-    const endDate = filters.endDate ?? '';
     const sortBy = this.sortBy();
     const sortDirection = this.sortDirection();
 
-    const filtered = this.facade.trashItems().filter((item) => {
-      if (query && !item.label.toLowerCase().includes(query)) {
-        return false;
-      }
-      if (entityType !== 'ALL' && item.entityType !== entityType) {
-        return false;
-      }
-      const deletedDate = item.deletedAt.slice(0, 10);
-      if (startDate && deletedDate < startDate) {
-        return false;
-      }
-      if (endDate && deletedDate > endDate) {
-        return false;
-      }
-      return true;
-    });
-
     const direction = sortDirection === 'asc' ? 1 : -1;
-    return filtered.slice().sort((first, second) => {
+    return this.backendFilteredTrashItems().slice().sort((first, second) => {
       const compare = this.compareTrashItem(first, second, sortBy);
       return compare * direction;
     });
   });
 
-  constructor(protected readonly facade: FinanceFacade) {}
+  constructor(protected readonly facade: FinanceFacade) {
+    effect(() => {
+      this.filterValues();
+      this.fetchTrashItemsFromBackend();
+    });
+
+    effect(() => {
+      this.facade.trashItems();
+      this.fetchTrashItemsFromBackend();
+    });
+  }
 
   protected async restore(item: TrashItem): Promise<void> {
     const confirmed = await this.confirmDialog.confirm({
@@ -150,5 +140,23 @@ export class TrashPageComponent {
       return first.purgeAt.localeCompare(second.purgeAt);
     }
     return first.deletedAt.localeCompare(second.deletedAt);
+  }
+
+  private fetchTrashItemsFromBackend(): void {
+    const filters = this.toTrashFilters();
+    this.facade.listTrashItemsFiltered(filters).subscribe({
+      next: (items) => this.backendFilteredTrashItems.set(items),
+      error: () => this.backendFilteredTrashItems.set([])
+    });
+  }
+
+  private toTrashFilters(): TrashListFilters {
+    const filters = this.filterValues();
+    return {
+      query: (filters.query ?? '').trim(),
+      entityType: filters.entityType ?? 'ALL',
+      startDate: filters.startDate ?? '',
+      endDate: filters.endDate ?? ''
+    };
   }
 }
