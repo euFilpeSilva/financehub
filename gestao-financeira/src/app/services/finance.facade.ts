@@ -8,6 +8,7 @@ import {
   ComparisonSummary,
   DataRetentionSettings,
   IncomeEntry,
+  InternalTransferSuggestion,
   OfxImportBatchProgress,
   OfxImportProgressEvent,
   OfxImportResult,
@@ -62,6 +63,7 @@ export class FinanceFacade {
     FinanceFacade.DEFAULT_OFX_IMPORT_BATCH_PROGRESS
   );
   private readonly operationNoticeSource = signal<OperationNotice | null>(null);
+  private readonly internalTransferSuggestionsSource = signal<InternalTransferSuggestion[]>([]);
   private noticeId = 0;
 
   readonly selectedMonth = signal(getCurrentMonth());
@@ -90,6 +92,7 @@ export class FinanceFacade {
   readonly operationNotice = computed(() => this.operationNoticeSource());
   readonly accountReconciliation = computed(() => this.accountReconciliationSource());
   readonly ofxImportBatchProgress = computed(() => this.ofxImportBatchProgressSource());
+  readonly internalTransferSuggestions = computed(() => this.internalTransferSuggestionsSource());
 
   readonly availableExpenseCategories = this.billsFacade.availableExpenseCategories;
 
@@ -631,6 +634,67 @@ export class FinanceFacade {
       (result) => this.accountReconciliationSource.set(result),
       'Falha ao calcular conciliacao por conta.'
     );
+  }
+
+  detectInternalTransfers(payload: {
+    ownerName?: string;
+    ownerCpf?: string;
+    dateToleranceDays: number;
+    autoApply: boolean;
+  }): void {
+    this.execute(
+      this.gateway.detectInternalTransfers(payload),
+      (result) => {
+        this.internalTransferSuggestionsSource.set(result);
+        if (payload.autoApply && result.length) {
+          this.refreshEntityAndGovernanceData();
+          this.refreshDashboardSummary();
+        }
+      },
+      'Falha ao detectar transferencias internas.'
+    );
+  }
+
+  linkInternalTransfer(billId: string, incomeId: string): void {
+    this.execute(
+      this.gateway.linkInternalTransfer(billId, incomeId),
+      () => {
+        this.internalTransferSuggestionsSource.update((items) =>
+          items.filter((item) => !(item.billId === billId && item.incomeId === incomeId))
+        );
+        this.refreshEntityAndGovernanceData();
+        this.refreshDashboardSummary();
+      },
+      'Falha ao vincular transferencia interna.',
+      'Transferencia interna vinculada com sucesso.'
+    );
+  }
+
+  linkInternalTransfersBatch(items: Array<{ billId: string; incomeId: string }>): void {
+    const unique = items.filter((item, index, array) =>
+      array.findIndex((candidate) => candidate.billId === item.billId && candidate.incomeId === item.incomeId) === index
+    );
+    if (!unique.length) {
+      return;
+    }
+
+    this.execute(
+      forkJoin(unique.map((item) => this.gateway.linkInternalTransfer(item.billId, item.incomeId))),
+      () => {
+        const removedKeys = new Set(unique.map((item) => `${item.billId}:${item.incomeId}`));
+        this.internalTransferSuggestionsSource.update((suggestions) =>
+          suggestions.filter((item) => !removedKeys.has(`${item.billId}:${item.incomeId}`))
+        );
+        this.refreshEntityAndGovernanceData();
+        this.refreshDashboardSummary();
+      },
+      'Falha ao vincular transferencias internas em lote.',
+      `Transferencias internas vinculadas: ${unique.length}.`
+    );
+  }
+
+  clearInternalTransferSuggestions(): void {
+    this.internalTransferSuggestionsSource.set([]);
   }
 
   emergencyResetAllData(keepBankAccounts: boolean): void {

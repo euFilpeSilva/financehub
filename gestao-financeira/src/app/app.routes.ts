@@ -37,6 +37,11 @@ export const routes: Routes = [
       import('./features/bank-accounts/bank-accounts-page.component').then((m) => m.BankAccountsPageComponent)
   },
   {
+    path: 'transferencias-internas',
+    loadComponent: () =>
+      import('./features/internal-transfers/internal-transfers-page.component').then((m) => m.InternalTransfersPageComponent)
+  },
+  {
     path: 'lixeira',
     loadComponent: () =>
       import('./features/trash/trash-page.component').then((m) => m.TrashPageComponent)

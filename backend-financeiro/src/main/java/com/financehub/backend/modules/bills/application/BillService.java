@@ -56,7 +56,7 @@ public class BillService {
   ) {
     String normalizedQuery = normalizeText(query);
     String normalizedCategory = normalizeOption(category);
-    String normalizedBankAccountId = normalizeOption(bankAccountId);
+    String normalizedBankAccountId = normalizeIdOption(bankAccountId);
     String normalizedStatus = normalizeOption(status);
     String normalizedRecurring = normalizeOption(recurring);
 
@@ -285,6 +285,13 @@ public class BillService {
       return "";
     }
     return value.trim().toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizeIdOption(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return value.trim();
   }
 
   private String normalizeText(String value) {

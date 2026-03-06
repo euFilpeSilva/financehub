@@ -9,6 +9,7 @@ import {
   DataRetentionSettings,
   DashboardSummary,
   IncomeEntry,
+  InternalTransferSuggestion,
   OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
@@ -109,6 +110,13 @@ export interface FinanceGateway {
     endDate: string,
     referenceBalance?: number
   ): Observable<AccountReconciliation>;
+  detectInternalTransfers(payload: {
+    ownerName?: string;
+    ownerCpf?: string;
+    dateToleranceDays: number;
+    autoApply: boolean;
+  }): Observable<InternalTransferSuggestion[]>;
+  linkInternalTransfer(billId: string, incomeId: string): Observable<void>;
   runRetentionCleanup(): Observable<void>;
   emergencyResetAllData(keepBankAccounts: boolean): Observable<void>;
   importOfxStatementWithProgress(

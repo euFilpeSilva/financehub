@@ -16,6 +16,7 @@ import {
   DataRetentionSettings,
   DashboardSummary,
   IncomeEntry,
+  InternalTransferSuggestion,
   OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
@@ -110,6 +111,7 @@ type TrashApi = {
 type OfxImportApi = OfxImportResult;
 type DashboardSummaryApi = DashboardSummary;
 type AccountReconciliationApi = AccountReconciliation;
+type InternalTransferSuggestionApi = InternalTransferSuggestion;
 
 type AuditApi = {
   id: string;
@@ -491,6 +493,30 @@ export class HttpFinanceGateway implements FinanceGateway {
     return this.http.get<AccountReconciliationApi>(`${this.baseUrl}/analytics/account-reconciliation`, {
       params
     });
+  }
+
+  detectInternalTransfers(payload: {
+    ownerName?: string;
+    ownerCpf?: string;
+    dateToleranceDays: number;
+    autoApply: boolean;
+  }): Observable<InternalTransferSuggestion[]> {
+    return this.http.post<InternalTransferSuggestionApi[]>(`${this.baseUrl}/transfers/internal/detect`, {
+      ownerName: payload.ownerName?.trim() || null,
+      ownerCpf: payload.ownerCpf?.trim() || null,
+      dateToleranceDays: payload.dateToleranceDays,
+      autoApply: payload.autoApply
+    }).pipe(
+      map((items) => items.map((item) => ({
+        ...item,
+        confidence: item.confidence ?? 'BAIXA',
+        reasons: Array.isArray(item.reasons) ? item.reasons : []
+      })))
+    );
+  }
+
+  linkInternalTransfer(billId: string, incomeId: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/transfers/internal/link`, { billId, incomeId });
   }
 
   runRetentionCleanup(): Observable<void> {

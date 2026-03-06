@@ -4,6 +4,7 @@ import com.financehub.backend.modules.transfers.api.dto.InternalTransferLinkRequ
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferDetectionRequest;
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferReclassificationRequest;
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferReclassificationResponse;
+import com.financehub.backend.modules.transfers.api.dto.ImportedDuplicateCleanupResponse;
 import com.financehub.backend.modules.transfers.api.dto.InternalTransferSuggestionResponse;
 import com.financehub.backend.modules.transfers.application.InternalTransferService;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -50,6 +52,14 @@ public class InternalTransferController {
     String ownerCpf = request == null ? null : request.ownerCpf();
     boolean includePicpay = request == null || request.includePicpay() == null || request.includePicpay();
     boolean includeLegacyBroker = request == null || request.includeLegacyBroker() == null || request.includeLegacyBroker();
-    return service.reclassifyLegacyTransfers(ownerName, ownerCpf, includePicpay, includeLegacyBroker);
+    boolean includeInvestmentPurchases = request == null || request.includeInvestmentPurchases() == null || request.includeInvestmentPurchases();
+    return service.reclassifyLegacyTransfers(ownerName, ownerCpf, includePicpay, includeLegacyBroker, includeInvestmentPurchases);
+  }
+
+  @PostMapping("/internal/cleanup-imported-duplicates")
+  public ImportedDuplicateCleanupResponse cleanupImportedDuplicates(
+    @RequestParam(defaultValue = "true") boolean dryRun
+  ) {
+    return service.cleanupImportedExpenseDuplicates(dryRun);
   }
 }

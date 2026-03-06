@@ -63,8 +63,8 @@ export class DashboardPageComponent {
   });
   protected readonly reconciliationForm = this.fb.nonNullable.group({
     bankAccountId: [''],
-    startDate: ['2025-01-01', Validators.required],
-    endDate: ['2026-02-27', Validators.required],
+    startDate: [this.todayIsoDate(), Validators.required],
+    endDate: [this.todayIsoDate(), Validators.required],
     referenceBalance: [0]
   });
   protected readonly reconciliationTopCauses = computed(() => {
@@ -115,6 +115,7 @@ export class DashboardPageComponent {
   });
   protected editingSpendingGoalId: string | null = null;
   private hasAppliedDashboardDefaults = false;
+  private hasInitializedReconciliationDefaults = false;
 
   constructor(protected readonly facade: FinanceFacade) {
     effect(() => {
@@ -127,6 +128,30 @@ export class DashboardPageComponent {
         });
         this.hasAppliedDashboardDefaults = true;
       }
+    });
+
+    effect(() => {
+      if (this.hasInitializedReconciliationDefaults) {
+        return;
+      }
+
+      const accounts = this.facade.bankAccounts();
+      const bills = this.facade.allBills();
+      const incomes = this.facade.allIncomes();
+
+      if (!accounts.length && !bills.length && !incomes.length) {
+        return;
+      }
+
+      const accountId = this.resolveDefaultBankAccountId(accounts);
+      const startDate = this.resolveEarliestMovementDate(bills, incomes) ?? this.todayIsoDate();
+
+      this.reconciliationForm.patchValue({
+        bankAccountId: accountId,
+        startDate,
+        endDate: this.todayIsoDate()
+      });
+      this.hasInitializedReconciliationDefaults = true;
     });
   }
 
@@ -289,6 +314,34 @@ export class DashboardPageComponent {
       endDate: this.lastDayOfCurrentMonth(),
       active: true
     });
+  }
+
+  private resolveDefaultBankAccountId(
+    accounts: Array<{ id: string; active: boolean }>
+  ): string {
+    const active = accounts.find((account) => account.active);
+    if (active) {
+      return active.id;
+    }
+    return accounts[0]?.id ?? '';
+  }
+
+  private resolveEarliestMovementDate(
+    bills: Array<{ dueDate: string }>,
+    incomes: Array<{ receivedAt: string }>
+  ): string | null {
+    const dates = [
+      ...bills.map((item) => item.dueDate),
+      ...incomes.map((item) => item.receivedAt)
+    ]
+      .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+      .sort((a, b) => a.localeCompare(b));
+
+    return dates.length ? dates[0] : null;
+  }
+
+  private todayIsoDate(): string {
+    return new Date().toISOString().slice(0, 10);
   }
 
   private monthWithOffset(offset: number): string {

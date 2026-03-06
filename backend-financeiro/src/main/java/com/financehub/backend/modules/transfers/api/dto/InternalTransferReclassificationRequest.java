@@ -4,6 +4,7 @@ public record InternalTransferReclassificationRequest(
   String ownerName,
   String ownerCpf,
   Boolean includePicpay,
-  Boolean includeLegacyBroker
+  Boolean includeLegacyBroker,
+  Boolean includeInvestmentPurchases
 ) {
 }

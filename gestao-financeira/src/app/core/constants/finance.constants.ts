@@ -21,7 +21,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/contas', label: 'Saidas' },
       { path: '/entradas', label: 'Entradas' },
       { path: '/extratos', label: 'Importar OFX' },
-      { path: '/contas-bancarias', label: 'Contas bancarias' }
+      { path: '/contas-bancarias', label: 'Contas bancarias' },
+      { path: '/transferencias-internas', label: 'Transferencias internas' }
     ]
   },
   {

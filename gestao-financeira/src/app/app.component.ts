@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AlertTriangle, CheckCircle2, CloudUpload, Landmark, LucideAngularModule, Moon, Sun, X } from 'lucide-angular';
+import { AlertTriangle, CheckCircle2, CloudUpload, Landmark, LucideAngularModule, Moon, Pin, PinOff, Sun, X } from 'lucide-angular';
 import { NAV_GROUPS } from './core/constants/finance.constants';
 import { ThemeService } from './core/theme.service';
 import { FinanceFacade } from './services/finance.facade';
@@ -33,9 +33,13 @@ export class AppComponent {
   protected readonly Landmark = Landmark;
   protected readonly Moon = Moon;
   protected readonly Sun = Sun;
+  protected readonly Pin = Pin;
+  protected readonly PinOff = PinOff;
   protected readonly navGroups = NAV_GROUPS;
   protected readonly facade = inject(FinanceFacade);
   protected readonly importWidgetExpanded = signal(false);
+  protected readonly importWidgetPinned = signal(false);
+  private readonly importWidgetHovered = signal(false);
   protected readonly importProgress = this.facade.ofxImportBatchProgress;
   protected readonly importPhaseLabel = computed(() => {
     const phase = this.importProgress().currentFilePhase;
@@ -73,15 +77,33 @@ export class AppComponent {
   }
 
   protected onImportWidgetMouseEnter(): void {
+    this.importWidgetHovered.set(true);
     this.importWidgetExpanded.set(true);
   }
 
   protected onImportWidgetMouseLeave(): void {
-    this.importWidgetExpanded.set(false);
+    this.importWidgetHovered.set(false);
+    if (!this.importWidgetPinned()) {
+      this.importWidgetExpanded.set(false);
+    }
   }
 
   protected toggleImportWidget(): void {
     this.importWidgetExpanded.update((expanded) => !expanded);
+  }
+
+  protected toggleImportWidgetPinned(event: Event): void {
+    event.stopPropagation();
+    const nextPinned = !this.importWidgetPinned();
+    this.importWidgetPinned.set(nextPinned);
+    if (nextPinned) {
+      this.importWidgetExpanded.set(true);
+      return;
+    }
+
+    if (!this.importWidgetHovered()) {
+      this.importWidgetExpanded.set(false);
+    }
   }
 
   protected closeImportWidget(event: Event): void {

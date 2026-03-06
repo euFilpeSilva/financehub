@@ -214,3 +214,20 @@ export interface AccountReconciliation {
   legacyIncomeMatches: number;
   legacyExpenseMatches: number;
 }
+
+export interface InternalTransferSuggestion {
+  billId: string;
+  incomeId: string;
+  billDescription: string;
+  incomeSource: string;
+  billBankAccountId?: string | null;
+  incomeBankAccountId?: string | null;
+  billBankAccountLabel: string;
+  incomeBankAccountLabel: string;
+  billDate: string;
+  incomeDate: string;
+  amount: number;
+  score: number;
+  confidence: 'ALTA' | 'MEDIA' | 'BAIXA';
+  reasons: string[];
+}

@@ -32,6 +32,12 @@ public class OfxImportService {
   private static final String LEGACY_INVESTMENT_TECHNICAL_LABEL = "Investimentos - Legado Easynvest";
   private static final String LEGACY_INVESTMENT_TECHNICAL_BANK_ID = "999";
   private static final String LEGACY_INVESTMENT_TECHNICAL_ACCOUNT_ID = "LEGADOEASYNVEST";
+  private static final String PICPAY_TECHNICAL_LABEL = "Carteira Tecnica - PicPay";
+  private static final String PICPAY_TECHNICAL_BANK_ID = "995";
+  private static final String PICPAY_TECHNICAL_ACCOUNT_ID = "TECNICAPICPAY";
+  private static final String MERCADO_PAGO_TECHNICAL_LABEL = "Carteira Tecnica - Mercado Pago";
+  private static final String MERCADO_PAGO_TECHNICAL_BANK_ID = "994";
+  private static final String MERCADO_PAGO_TECHNICAL_ACCOUNT_ID = "TECNICAMERCADOPAGO";
   private static final Set<String> IGNORED_MEMO_MARKERS = Set.of(
     "RESGATE RDB",
     "APLICACAO RDB",
@@ -65,6 +71,10 @@ public class OfxImportService {
   private static final Set<String> MERCADO_PAGO_MARKERS = Set.of(
     "MERCADO PAGO",
     "MERCADOPAGO"
+  );
+  private static final Set<String> INVESTMENT_PURCHASE_MARKERS = Set.of(
+    "COMPRA DE BDR",
+    "COMPRA BDR"
   );
   private static final String ITAU_CARD_PAYMENT_INTERNAL_MEMO = "INT ITAU MC";
   private static final String ITAU_CARD_PAYMENT_DETAILED_PREFIX = "ITAU MC";
@@ -116,10 +126,7 @@ public class OfxImportService {
       throw new IllegalArgumentException("Conteudo OFX invalido.");
     }
 
-    BankAccount importedBankAccount = bankAccountService.findByOfxIdentifiers(
-      extractTag(content, "BANKID"),
-      extractTag(content, "ACCTID")
-    ).orElse(null);
+    BankAccount importedBankAccount = resolveImportedBankAccount(content);
     String importedBankAccountId = importedBankAccount == null ? null : importedBankAccount.getId();
 
     Set<String> existingBillKeys = new HashSet<>();
@@ -136,6 +143,8 @@ public class OfxImportService {
     int createdIncomes = 0;
     int skippedDuplicates = 0;
     boolean legacyTechnicalAccountEnsured = false;
+    boolean picPayTechnicalAccountEnsured = false;
+    boolean mercadoPagoTechnicalAccountEnsured = false;
 
     List<OfxTransaction> parsedTransactions = extractTransactionBlocks(content).stream()
       .map(this::parseTransaction)
@@ -153,9 +162,21 @@ public class OfxImportService {
         continue;
       }
 
-      if (!legacyTechnicalAccountEnsured && isLegacyInvestmentTransferMemo(tx.memo())) {
+      String normalizedMemo = normalizeText(tx.memo());
+
+      if (!legacyTechnicalAccountEnsured && isLegacyInvestmentTransferMemoNormalized(normalizedMemo)) {
         ensureLegacyInvestmentTechnicalAccount();
         legacyTechnicalAccountEnsured = true;
+      }
+
+      if (!picPayTechnicalAccountEnsured && isPicPayOwnTransferMemo(normalizedMemo, ownerName, ownerCpf)) {
+        ensurePicPayTechnicalAccount();
+        picPayTechnicalAccountEnsured = true;
+      }
+
+      if (!mercadoPagoTechnicalAccountEnsured && isMercadoPagoOwnTransferMemo(normalizedMemo, ownerName, ownerCpf)) {
+        ensureMercadoPagoTechnicalAccount();
+        mercadoPagoTechnicalAccountEnsured = true;
       }
 
       total += 1;
@@ -352,6 +373,10 @@ public class OfxImportService {
       return false;
     }
 
+    if (isInvestmentPurchaseMemo(normalized)) {
+      return true;
+    }
+
     boolean hasTransferWord = hasTransferKeyword(normalized);
     if (!hasTransferWord) {
       return false;
@@ -464,20 +489,255 @@ public class OfxImportService {
   }
 
   private void ensureLegacyInvestmentTechnicalAccount() {
+    ensureTechnicalAccount(
+      LEGACY_INVESTMENT_TECHNICAL_LABEL,
+      LEGACY_INVESTMENT_TECHNICAL_BANK_ID,
+      LEGACY_INVESTMENT_TECHNICAL_ACCOUNT_ID
+    );
+  }
+
+  private void ensurePicPayTechnicalAccount() {
+    ensureTechnicalAccount(
+      PICPAY_TECHNICAL_LABEL,
+      PICPAY_TECHNICAL_BANK_ID,
+      PICPAY_TECHNICAL_ACCOUNT_ID
+    );
+  }
+
+  private void ensureMercadoPagoTechnicalAccount() {
+    ensureTechnicalAccount(
+      MERCADO_PAGO_TECHNICAL_LABEL,
+      MERCADO_PAGO_TECHNICAL_BANK_ID,
+      MERCADO_PAGO_TECHNICAL_ACCOUNT_ID
+    );
+  }
+
+  private void ensureTechnicalAccount(String label, String bankId, String accountId) {
     boolean exists = bankAccountService.listAll().stream()
-      .anyMatch(account -> normalizeText(account.getLabel()).equals(normalizeText(LEGACY_INVESTMENT_TECHNICAL_LABEL)));
+      .anyMatch(account -> normalizeText(account.getLabel()).equals(normalizeText(label)));
     if (exists) {
       return;
     }
 
     bankAccountService.create(new BankAccountRequest(
-      LEGACY_INVESTMENT_TECHNICAL_LABEL,
-      LEGACY_INVESTMENT_TECHNICAL_BANK_ID,
+      label,
+      bankId,
       null,
-      LEGACY_INVESTMENT_TECHNICAL_ACCOUNT_ID,
+      accountId,
       false,
       true
     ));
+  }
+
+  private BankAccount resolveImportedBankAccount(String content) {
+    String bankIdRaw = extractTag(content, "BANKID");
+    String accountIdRaw = extractTag(content, "ACCTID");
+    String fidRaw = extractTag(content, "FID");
+    String orgRaw = extractTag(content, "ORG");
+    List<BankAccount> accounts = bankAccountService.listAll();
+
+    BankAccount exactActive = bankAccountService.findByOfxIdentifiers(bankIdRaw, accountIdRaw).orElse(null);
+    if (exactActive != null) {
+      return exactActive;
+    }
+
+    String normalizedBankId = normalizeBankId(bankIdRaw);
+    if (normalizedBankId.isBlank()) {
+      normalizedBankId = normalizeBankId(fidRaw);
+    }
+    if (normalizedBankId.isBlank()) {
+      normalizedBankId = inferBankIdFromOrganization(orgRaw);
+    }
+
+    String normalizedAccountId = normalizeAccountId(accountIdRaw);
+    String normalizedAccountDigits = normalizeDigits(accountIdRaw);
+    String bankIdForMatch = normalizedBankId;
+    String accountIdForMatch = normalizedAccountId;
+    String accountDigitsForMatch = normalizedAccountDigits;
+
+    if (!bankIdForMatch.isBlank() && !accountIdForMatch.isBlank()) {
+      List<BankAccount> exactCandidates = accounts.stream()
+        .filter(item -> normalizeBankId(item.getBankId()).equals(bankIdForMatch))
+        .filter(item -> normalizeAccountId(item.getAccountId()).equals(accountIdForMatch))
+        .toList();
+      BankAccount exactUnique = pickUniqueCandidate(exactCandidates);
+      if (exactUnique != null) {
+        return exactUnique;
+      }
+    }
+
+    if (!bankIdForMatch.isBlank() && !accountDigitsForMatch.isBlank()) {
+      List<BankAccount> sameBankCandidates = accounts.stream()
+        .filter(item -> normalizeBankId(item.getBankId()).equals(bankIdForMatch))
+        .toList();
+
+      BankAccount byDigits = resolveByAccountDigits(sameBankCandidates, accountDigitsForMatch);
+      if (byDigits != null) {
+        return byDigits;
+      }
+    }
+
+    if (!bankIdForMatch.isBlank()) {
+      List<BankAccount> sameBankCandidates = accounts.stream()
+        .filter(item -> normalizeBankId(item.getBankId()).equals(bankIdForMatch))
+        .toList();
+
+      // So vincula por banco quando ha apenas uma conta candidata para evitar associacao errada.
+      BankAccount uniqueByBank = pickUniqueCandidate(sameBankCandidates);
+      if (uniqueByBank != null) {
+        return uniqueByBank;
+      }
+
+      // Para extratos com cabecalho parcial (comum em alguns bancos), ainda
+      // vinculamos por BANKID para preservar a flag do banco no extrato.
+      BankAccount preferredByBank = pickPreferredCandidate(sameBankCandidates);
+      if (preferredByBank != null) {
+        return preferredByBank;
+      }
+    }
+
+    String normalizedOrg = normalizeText(orgRaw);
+    if (!normalizedOrg.isBlank()) {
+      List<BankAccount> byOrgCandidates = accounts.stream()
+        .filter(item -> normalizeText(item.getLabel()).contains(normalizedOrg))
+        .toList();
+
+      BankAccount uniqueByOrg = pickUniqueCandidate(byOrgCandidates);
+      if (uniqueByOrg != null) {
+        return uniqueByOrg;
+      }
+    }
+
+    if (!accountIdForMatch.isBlank()) {
+      List<BankAccount> byAccountCandidates = accounts.stream()
+        .filter(item -> normalizeAccountId(item.getAccountId()).equals(accountIdForMatch))
+        .toList();
+
+      BankAccount uniqueByAccount = pickUniqueCandidate(byAccountCandidates);
+      if (uniqueByAccount != null) {
+        return uniqueByAccount;
+      }
+    }
+
+    return null;
+  }
+
+  private BankAccount resolveByAccountDigits(List<BankAccount> candidates, String accountDigits) {
+    if (accountDigits == null || accountDigits.isBlank()) {
+      return null;
+    }
+
+    List<BankAccount> exactDigits = candidates.stream()
+      .filter(item -> normalizeDigits(item.getAccountId()).equals(accountDigits))
+      .toList();
+    BankAccount exact = pickUniqueCandidate(exactDigits);
+    if (exact != null) {
+      return exact;
+    }
+
+    if (accountDigits.length() < 6) {
+      return null;
+    }
+
+    String suffix = accountDigits.substring(accountDigits.length() - 6);
+    List<BankAccount> suffixCandidates = candidates.stream()
+      .filter(item -> normalizeDigits(item.getAccountId()).endsWith(suffix))
+      .toList();
+    return pickUniqueCandidate(suffixCandidates);
+  }
+
+  private BankAccount pickUniqueCandidate(List<BankAccount> candidates) {
+    if (candidates == null || candidates.isEmpty()) {
+      return null;
+    }
+
+    List<BankAccount> active = candidates.stream().filter(BankAccount::isActive).toList();
+    if (active.size() == 1) {
+      return active.get(0);
+    }
+    if (active.size() > 1) {
+      return null;
+    }
+
+    return candidates.size() == 1 ? candidates.get(0) : null;
+  }
+
+  private BankAccount pickPreferredCandidate(List<BankAccount> candidates) {
+    if (candidates == null || candidates.isEmpty()) {
+      return null;
+    }
+
+    List<BankAccount> active = candidates.stream().filter(BankAccount::isActive).toList();
+    if (active.size() == 1) {
+      return active.get(0);
+    }
+    if (!active.isEmpty()) {
+      List<BankAccount> activePrimary = active.stream().filter(BankAccount::isPrimaryIncome).toList();
+      if (activePrimary.size() == 1) {
+        return activePrimary.get(0);
+      }
+      return active.get(0);
+    }
+
+    List<BankAccount> primary = candidates.stream().filter(BankAccount::isPrimaryIncome).toList();
+    if (primary.size() == 1) {
+      return primary.get(0);
+    }
+    return candidates.get(0);
+  }
+
+  private String inferBankIdFromOrganization(String orgRaw) {
+    String normalizedOrg = normalizeText(orgRaw);
+    if (normalizedOrg.isBlank()) {
+      return "";
+    }
+    if (normalizedOrg.contains("NUBANK") || normalizedOrg.contains("NU PAGAMENTOS")) {
+      return "260";
+    }
+    if (normalizedOrg.contains("INTER")) {
+      return "77";
+    }
+    if (normalizedOrg.contains("ITAU")) {
+      return "341";
+    }
+    if (normalizedOrg.contains("SANTANDER")) {
+      return "33";
+    }
+    if (normalizedOrg.contains("BRADESCO")) {
+      return "237";
+    }
+    if (normalizedOrg.contains("CAIXA")) {
+      return "104";
+    }
+    if (normalizedOrg.contains("BANCO DO BRASIL") || normalizedOrg.equals("BB")) {
+      return "1";
+    }
+    if (normalizedOrg.contains("PAGBANK")) {
+      return "290";
+    }
+    return "";
+  }
+
+  private String normalizeDigits(String value) {
+    if (value == null) {
+      return "";
+    }
+    return value.replaceAll("\\D", "");
+  }
+
+  private String normalizeBankId(String value) {
+    String digits = normalizeDigits(value);
+    if (digits.isBlank()) {
+      return "";
+    }
+    return digits.replaceFirst("^0+(?!$)", "");
+  }
+
+  private String normalizeAccountId(String value) {
+    if (value == null) {
+      return "";
+    }
+    return value.replaceAll("[^0-9A-Za-z]", "").toUpperCase(Locale.ROOT);
   }
 
   private boolean isLoanCreditMemo(String normalizedMemo) {
@@ -485,6 +745,13 @@ public class OfxImportService {
       return false;
     }
     return LOAN_CREDIT_MARKERS.stream().anyMatch(normalizedMemo::contains);
+  }
+
+  private boolean isInvestmentPurchaseMemo(String normalizedMemo) {
+    if (normalizedMemo == null || normalizedMemo.isBlank()) {
+      return false;
+    }
+    return INVESTMENT_PURCHASE_MARKERS.stream().anyMatch(normalizedMemo::contains);
   }
 
   private boolean shouldIgnoreTransaction(String memo) {
