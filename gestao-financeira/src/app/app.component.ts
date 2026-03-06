@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AlertTriangle, CheckCircle2, CloudUpload, Landmark, LucideAngularModule, Moon, Sun, X } from 'lucide-angular';
 import { NAV_GROUPS } from './core/constants/finance.constants';
@@ -34,6 +34,7 @@ export class AppComponent {
   protected readonly Moon = Moon;
   protected readonly Sun = Sun;
   protected readonly navGroups = NAV_GROUPS;
+  protected readonly facade = inject(FinanceFacade);
   protected readonly importWidgetExpanded = signal(false);
   protected readonly importProgress = this.facade.ofxImportBatchProgress;
   protected readonly importPhaseLabel = computed(() => {
@@ -48,7 +49,6 @@ export class AppComponent {
   });
 
   constructor(
-    protected readonly facade: FinanceFacade,
     protected readonly theme: ThemeService,
     private readonly router: Router,
     private readonly toast: ToastService
