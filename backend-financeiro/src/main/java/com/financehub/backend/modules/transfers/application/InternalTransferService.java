@@ -53,6 +53,40 @@ public class InternalTransferService {
     "CONTA PROPRIA",
     "ENTRE CONTAS"
   );
+  private static final Set<String> OWNER_NAME_CONNECTOR_TOKENS = Set.of(
+    "DA",
+    "DE",
+    "DO",
+    "DAS",
+    "DOS",
+    "E"
+  );
+  private static final Set<String> COMMON_SURNAME_TOKENS = Set.of(
+    "SILVA",
+    "SOUZA",
+    "SOUSA",
+    "SANTOS",
+    "OLIVEIRA",
+    "PEREIRA",
+    "COSTA",
+    "ALMEIDA",
+    "FERREIRA",
+    "RODRIGUES",
+    "GOMES",
+    "MARTINS",
+    "ARAUJO",
+    "LIMA",
+    "CARVALHO",
+    "RIBEIRO",
+    "ALVES",
+    "BARBOSA",
+    "CARDOSO",
+    "NUNES",
+    "ROCHA",
+    "MOREIRA",
+    "MENDES",
+    "TEIXEIRA"
+  );
   private static final Set<String> INVESTMENT_PURCHASE_MARKERS = Set.of(
     "COMPRA DE BDR",
     "COMPRA BDR"
@@ -182,6 +216,7 @@ public class InternalTransferService {
 
     String normalizedOwnerCpf = onlyDigits(ownerCpf);
     Set<String> ownerTokens = tokenizeOwnerName(ownerName);
+    String primaryOwnerToken = resolvePrimaryOwnerToken(ownerName);
     Map<String, String> accountLabelsById = new HashMap<>();
     for (BankAccount account : bankAccountService.listAll()) {
       accountLabelsById.put(account.getId(), account.getLabel());
@@ -191,6 +226,10 @@ public class InternalTransferService {
     for (Bill bill : bills) {
       for (Income income : incomes) {
         if (isLoanOriginIncome(income)) {
+          continue;
+        }
+
+        if (!hasDistinctLinkedAccounts(bill.getBankAccountId(), income.getBankAccountId())) {
           continue;
         }
 
@@ -218,8 +257,9 @@ public class InternalTransferService {
           reasons.add("CPF do titular detectado no historico");
         }
 
-        int matchedTokenCount = countMatchedOwnerTokens(combinedText, ownerTokens);
-        boolean hasNameEvidence = matchedTokenCount >= 2;
+        int matchedStrongTokenCount = countMatchedStrongOwnerTokens(combinedText, ownerTokens);
+        boolean hasPrimaryTokenEvidence = !primaryOwnerToken.isBlank() && combinedText.contains(primaryOwnerToken);
+        boolean hasNameEvidence = hasPrimaryTokenEvidence || matchedStrongTokenCount >= 2;
         if (hasNameEvidence) {
           score += 20;
           reasons.add("Nome do titular detectado no historico");
@@ -247,8 +287,8 @@ public class InternalTransferService {
           reasons.add("Padrao de transferencia identificado");
         }
 
-        boolean hasCoreOwnershipEvidence = hasOwnerIdentityEvidence || hasSameOwnershipEvidence || hasWalletOwnershipEvidence;
-        if (!hasCoreOwnershipEvidence) {
+        // Evita falso positivo por texto generico (ex.: sobrenomes comuns) sem evidencias do titular.
+        if (!hasOwnerIdentityEvidence) {
           continue;
         }
 
@@ -446,11 +486,31 @@ public class InternalTransferService {
     }
     Set<String> tokens = new HashSet<>();
     for (String token : normalized.split(" ")) {
-      if (token.length() >= 3) {
+      if (token.length() >= 3 && !OWNER_NAME_CONNECTOR_TOKENS.contains(token)) {
         tokens.add(token);
       }
     }
     return tokens;
+  }
+
+  private String resolvePrimaryOwnerToken(String ownerName) {
+    String normalized = normalizeText(ownerName);
+    if (normalized.isBlank()) {
+      return "";
+    }
+    for (String token : normalized.split(" ")) {
+      if (token.length() < 3) {
+        continue;
+      }
+      if (OWNER_NAME_CONNECTOR_TOKENS.contains(token)) {
+        continue;
+      }
+      if (COMMON_SURNAME_TOKENS.contains(token)) {
+        continue;
+      }
+      return token;
+    }
+    return "";
   }
 
   private int countMatchedOwnerTokens(String text, Set<String> tokens) {
@@ -459,6 +519,22 @@ public class InternalTransferService {
     }
     int matched = 0;
     for (String token : tokens) {
+      if (text.contains(token)) {
+        matched += 1;
+      }
+    }
+    return matched;
+  }
+
+  private int countMatchedStrongOwnerTokens(String text, Set<String> tokens) {
+    if (tokens.isEmpty()) {
+      return 0;
+    }
+    int matched = 0;
+    for (String token : tokens) {
+      if (COMMON_SURNAME_TOKENS.contains(token)) {
+        continue;
+      }
       if (text.contains(token)) {
         matched += 1;
       }
@@ -533,6 +609,16 @@ public class InternalTransferService {
       return "NULL";
     }
     return value.trim();
+  }
+
+  private boolean hasDistinctLinkedAccounts(String billBankAccountId, String incomeBankAccountId) {
+    if (billBankAccountId == null || billBankAccountId.isBlank()) {
+      return false;
+    }
+    if (incomeBankAccountId == null || incomeBankAccountId.isBlank()) {
+      return false;
+    }
+    return !billBankAccountId.trim().equals(incomeBankAccountId.trim());
   }
 
   private String resolveConfidence(int score) {
