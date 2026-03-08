@@ -41,8 +41,6 @@ public class OfxImportService {
   private static final Set<String> IGNORED_MEMO_MARKERS = Set.of(
     "RESGATE RDB",
     "APLICACAO RDB",
-    "TRANSFERENCIA DE SALDO NUINVEST",
-    "TRANSFERENCIA DE SALDO NUIVEST",
     "COMPRA DE FII",
     "COMPRA FII"
   );

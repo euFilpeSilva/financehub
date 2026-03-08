@@ -160,6 +160,30 @@ export interface OfxImportResult {
   internalTransfersMarked: number;
 }
 
+export interface ImportedStatementYearCleanupRequest {
+  year: number;
+  bankAccountId?: string | null;
+  dryRun: boolean;
+  permanentDelete: boolean;
+}
+
+export interface ImportedStatementYearCleanupResult {
+  year: number;
+  startDate: string;
+  endDate: string;
+  bankAccountId?: string | null;
+  dryRun: boolean;
+  permanentDelete: boolean;
+  matchedBills: number;
+  matchedIncomes: number;
+  processedBills: number;
+  processedIncomes: number;
+  movedToTrash: number;
+  deletedPermanently: number;
+  totalMatched: number;
+  totalProcessed: number;
+}
+
 export type OfxImportProgressEvent =
   | {
       kind: 'progress';

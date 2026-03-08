@@ -1,5 +1,5 @@
 import { computed, Inject, inject, Injectable, signal } from '@angular/core';
-import { finalize, forkJoin, Observable, switchMap } from 'rxjs';
+import { finalize, firstValueFrom, forkJoin, Observable, switchMap } from 'rxjs';
 import {
   AccountReconciliation,
   AppPreferences,
@@ -9,6 +9,8 @@ import {
   DataRetentionSettings,
   IncomeEntry,
   InternalTransferSuggestion,
+  ImportedStatementYearCleanupRequest,
+  ImportedStatementYearCleanupResult,
   OfxImportBatchProgress,
   OfxImportProgressEvent,
   OfxImportResult,
@@ -704,6 +706,29 @@ export class FinanceFacade {
       'Falha ao zerar os dados da base.',
       'Base de dados zerada com sucesso.'
     );
+  }
+
+  async cleanupImportedStatementYear(
+    payload: ImportedStatementYearCleanupRequest
+  ): Promise<ImportedStatementYearCleanupResult> {
+    this.loading.set(true);
+    this.lastError.set(null);
+
+    try {
+      const result = await firstValueFrom(this.gateway.cleanupImportedStatementYear(payload));
+      if (!payload.dryRun) {
+        this.refreshEntityAndGovernanceData();
+        this.refreshDashboardSummary();
+      }
+      return result;
+    } catch {
+      const message = 'Falha ao limpar dados importados do extrato.';
+      this.lastError.set(message);
+      this.emitNotice('error', message);
+      throw new Error(message);
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   updateGoalProgress(goal: PlanningGoal, currentAmount: number): void {

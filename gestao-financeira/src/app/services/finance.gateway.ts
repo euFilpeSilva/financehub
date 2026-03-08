@@ -10,6 +10,8 @@ import {
   DashboardSummary,
   IncomeEntry,
   InternalTransferSuggestion,
+  ImportedStatementYearCleanupRequest,
+  ImportedStatementYearCleanupResult,
   OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
@@ -125,6 +127,9 @@ export interface FinanceGateway {
     ownerCpf?: string
   ): Observable<OfxImportProgressEvent>;
   importOfxStatement(file: File, ownerName?: string, ownerCpf?: string): Observable<OfxImportResult>;
+  cleanupImportedStatementYear(
+    payload: ImportedStatementYearCleanupRequest
+  ): Observable<ImportedStatementYearCleanupResult>;
 }
 
 export const FINANCE_GATEWAY = new InjectionToken<FinanceGateway>('FINANCE_GATEWAY');

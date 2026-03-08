@@ -1,71 +1,208 @@
-<article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
-  <div class="mb-5 flex items-center justify-between gap-3">
-    <div>
-      <h2 class="text-xl font-bold text-slate-900">Importar Extratos OFX</h2>
-      <p class="text-sm text-slate-600">Arraste um arquivo OFX ou selecione arquivo/pasta para popular o banco com transacoes reais.</p>
+<div class="space-y-6">
+  <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-5 flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-bold text-slate-900">Importar Extratos OFX</h2>
+        <p class="text-sm text-slate-600">Arraste um arquivo OFX ou selecione arquivo/pasta para popular o banco com transacoes reais.</p>
+      </div>
+      <lucide-angular [img]="UploadCloud" [size]="22" class="text-brand-600"></lucide-angular>
     </div>
-    <lucide-angular [img]="UploadCloud" [size]="22" class="text-brand-600"></lucide-angular>
-  </div>
 
-  <form [formGroup]="form" class="mb-4 grid gap-3 md:grid-cols-2">
-    <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-      Nome titular
-      <input
-        type="text"
-        formControlName="ownerName"
-        class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
-      />
-    </label>
-    <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-      CPF titular
-      <input
-        type="text"
-        formControlName="ownerCpf"
-        class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
-      />
-    </label>
-  </form>
+    <form [formGroup]="form" class="mb-4 grid gap-3 md:grid-cols-2">
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Nome titular
+        <input
+          type="text"
+          formControlName="ownerName"
+          class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+        />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        CPF titular
+        <input
+          type="text"
+          formControlName="ownerCpf"
+          class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+        />
+      </label>
+    </form>
 
-  <div
-    *ngIf="!hasEligibleIncomeAccount()"
-    class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
-  >
-    Importacao OFX bloqueada: cadastre e marque pelo menos uma conta ativa como elegivel para entrada em Contas bancarias.
-  </div>
+    <div
+      *ngIf="!hasEligibleIncomeAccount()"
+      class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+    >
+      Importacao OFX bloqueada: cadastre e marque pelo menos uma conta ativa como elegivel para entrada em Contas bancarias.
+    </div>
 
-  <div
-    class="rounded-2xl border-2 border-dashed p-8 text-center transition"
-    [ngClass]="dragging() ? 'border-brand-500 bg-brand-50' : 'border-slate-300 bg-slate-50/70'"
-    (dragover)="onDragOver($event)"
-    (dragleave)="onDragLeave($event)"
-    (drop)="onDrop($event)"
-  >
-    <p class="mb-3 text-sm font-semibold text-slate-700">Arraste e solte arquivos `.ofx` aqui</p>
-    <div class="flex flex-wrap items-center justify-center gap-2">
-      <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white" [class.opacity-60]="facade.ofxImportBatchProgress().running">
-        <lucide-angular [img]="FileUp" [size]="16"></lucide-angular>
-        Selecionar arquivo(s)
-        <input type="file" accept=".ofx" multiple class="hidden" (change)="onFileSelection($event)" [disabled]="facade.ofxImportBatchProgress().running" />
+    <div
+      class="rounded-2xl border-2 border-dashed p-8 text-center transition"
+      [ngClass]="dragging() ? 'border-brand-500 bg-brand-50' : 'border-slate-300 bg-slate-50/70'"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      <p class="mb-3 text-sm font-semibold text-slate-700">Arraste e solte arquivos `.ofx` aqui</p>
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white" [class.opacity-60]="facade.ofxImportBatchProgress().running">
+          <lucide-angular [img]="FileUp" [size]="16"></lucide-angular>
+          Selecionar arquivo(s)
+          <input type="file" accept=".ofx" multiple class="hidden" (change)="onFileSelection($event)" [disabled]="facade.ofxImportBatchProgress().running" />
+        </label>
+
+        <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700" [class.opacity-60]="facade.ofxImportBatchProgress().running">
+          <lucide-angular [img]="FolderOpen" [size]="16"></lucide-angular>
+          Selecionar pasta
+          <input type="file" accept=".ofx" webkitdirectory directory class="hidden" (change)="onFileSelection($event)" [disabled]="facade.ofxImportBatchProgress().running" />
+        </label>
+      </div>
+    </div>
+
+    <div *ngIf="facade.lastOfxImport() as result" class="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+      <h3 class="mb-2 text-sm font-bold text-slate-800">Ultima importacao</h3>
+      <ul class="space-y-1 text-sm text-slate-700">
+        <li><strong>Arquivo:</strong> {{ result.fileName }}</li>
+        <li><strong>Transacoes lidas:</strong> {{ result.totalTransactions }}</li>
+        <li><strong>Saidas criadas:</strong> {{ result.createdBills }}</li>
+        <li><strong>Entradas criadas:</strong> {{ result.createdIncomes }}</li>
+        <li><strong>Duplicadas ignoradas:</strong> {{ result.skippedDuplicates }}</li>
+        <li><strong>Transferencias internas marcadas:</strong> {{ result.internalTransfersMarked }}</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4">
+      <h2 class="text-xl font-bold text-slate-900">Limpeza De Importacoes Por Ano</h2>
+      <p class="text-sm text-slate-600">Remova somente os dados de extrato importado de um ano especifico, com opcao de lixeira ou exclusao definitiva.</p>
+    </div>
+
+    <form [formGroup]="cleanupForm" class="grid gap-3 md:grid-cols-3">
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Ano da importacao
+        <input
+          type="number"
+          min="2000"
+          max="2100"
+          formControlName="year"
+          class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+        />
       </label>
 
-      <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700" [class.opacity-60]="facade.ofxImportBatchProgress().running">
-        <lucide-angular [img]="FolderOpen" [size]="16"></lucide-angular>
-        Selecionar pasta
-        <input type="file" accept=".ofx" webkitdirectory directory class="hidden" (change)="onFileSelection($event)" [disabled]="facade.ofxImportBatchProgress().running" />
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Conta bancaria (opcional)
+        <select
+          formControlName="bankAccountId"
+          class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+        >
+          <option value="ALL">Todas as contas</option>
+          <option *ngFor="let account of facade.bankAccounts()" [value]="account.id">{{ account.label }}</option>
+        </select>
       </label>
-    </div>
-  </div>
 
-  <div *ngIf="facade.lastOfxImport() as result" class="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-    <h3 class="mb-2 text-sm font-bold text-slate-800">Ultima importacao</h3>
-    <ul class="space-y-1 text-sm text-slate-700">
-      <li><strong>Arquivo:</strong> {{ result.fileName }}</li>
-      <li><strong>Transacoes lidas:</strong> {{ result.totalTransactions }}</li>
-      <li><strong>Saidas criadas:</strong> {{ result.createdBills }}</li>
-      <li><strong>Entradas criadas:</strong> {{ result.createdIncomes }}</li>
-      <li><strong>Duplicadas ignoradas:</strong> {{ result.skippedDuplicates }}</li>
-      <li><strong>Transferencias internas marcadas:</strong> {{ result.internalTransfersMarked }}</li>
-    </ul>
-  </div>
-</article>
+      <div class="flex items-end gap-2">
+        <button
+          type="button"
+          (click)="runImportedYearCleanup()"
+          class="inline-flex h-10 items-center rounded-xl bg-rose-600 px-4 text-sm font-bold text-white transition hover:bg-rose-500"
+          [disabled]="cleanupProgress().running"
+          [class.opacity-60]="cleanupProgress().running"
+        >
+          Executar limpeza
+        </button>
+        <button
+          type="button"
+          (click)="clearCleanupProgress()"
+          class="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400"
+          [disabled]="cleanupProgress().running"
+        >
+          Limpar painel
+        </button>
+      </div>
+    </form>
+
+    <div class="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+      <div class="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span>Progresso da exclusao</span>
+        <span>{{ cleanupProgress().progress }}%</span>
+      </div>
+      <div class="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+        <div
+          class="h-full rounded-full transition-all duration-200"
+          [ngClass]="cleanupProgress().status === 'error' ? 'bg-rose-500' : cleanupProgress().status === 'success' ? 'bg-emerald-500' : 'bg-brand-600'"
+          [style.width.%]="cleanupProgress().progress"
+        ></div>
+      </div>
+      <p class="mt-2 text-sm font-semibold text-slate-800">{{ cleanupProgress().phase }}</p>
+      <p class="mt-1 text-sm text-slate-600">{{ cleanupProgress().details }}</p>
+    </div>
+
+    <div *ngIf="cleanupPreview() as preview" class="mt-4 grid gap-3 md:grid-cols-2">
+      <div class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+        <p><strong>Periodo alvo:</strong> {{ preview.startDate }} ate {{ preview.endDate }}</p>
+        <p><strong>Escopo:</strong> {{ preview.bankAccountId ? 'Conta especifica' : 'Todas as contas' }}</p>
+        <p><strong>Total identificado:</strong> {{ preview.totalMatched }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+        <p><strong>Entradas:</strong> {{ preview.matchedIncomes }} encontradas / {{ preview.processedIncomes }} processadas</p>
+        <p><strong>Saidas:</strong> {{ preview.matchedBills }} encontradas / {{ preview.processedBills }} processadas</p>
+        <p><strong>Destino:</strong> {{ preview.permanentDelete ? 'Exclusao definitiva' : 'Lixeira' }}</p>
+      </div>
+    </div>
+
+    <div class="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+      <div class="mb-3 flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-800">Historico De Limpezas</h3>
+        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Ultimas 8 execucoes</span>
+      </div>
+
+      <div class="mb-3 grid gap-2 md:grid-cols-2">
+        <label class="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Filtrar por ano
+          <select
+            [value]="cleanupHistoryYearFilter()"
+            (change)="setCleanupHistoryYearFilter($any($event.target).value)"
+            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+          >
+            <option value="ALL">Todos os anos</option>
+            <option *ngFor="let year of cleanupHistoryYearOptions()" [value]="year">{{ year }}</option>
+          </select>
+        </label>
+
+        <label class="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Filtrar por acao
+          <select
+            [value]="cleanupHistoryActionFilter()"
+            (change)="setCleanupHistoryActionFilter($any($event.target).value)"
+            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+          >
+            <option value="ALL">Todas</option>
+            <option value="delete">Enviado para lixeira</option>
+            <option value="purge">Exclusao definitiva</option>
+          </select>
+        </label>
+      </div>
+
+      <div *ngIf="cleanupHistory().length === 0" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+        Nenhuma limpeza registrada ainda.
+      </div>
+
+      <div *ngIf="cleanupHistory().length > 0" class="space-y-2">
+        <div
+          *ngFor="let event of cleanupHistory()"
+          class="rounded-xl border border-slate-200 bg-white px-3 py-2"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-xs font-semibold uppercase tracking-wide"
+              [ngClass]="event.action === 'purge' ? 'text-rose-700' : 'text-amber-700'"
+            >
+              {{ event.action === 'purge' ? 'Exclusao definitiva' : 'Enviado para lixeira' }}
+            </p>
+            <p class="text-xs text-slate-500">{{ formatTimestamp(event.timestamp) }}</p>
+          </div>
+          <p class="mt-1 text-sm text-slate-700">{{ event.message }}</p>
+        </div>
+      </div>
+    </div>
+  </article>
+</div>
 

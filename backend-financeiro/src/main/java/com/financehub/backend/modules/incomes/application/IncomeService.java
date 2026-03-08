@@ -65,7 +65,7 @@ public class IncomeService {
       .orElseGet(Set::of);
 
     return repository.findAll().stream()
-      .filter(income -> matchesQuery(normalizedQuery, income.getSource()))
+      .filter(income -> matchesQuery(normalizedQuery, income.getSource(), income.getAmount()))
       .filter(income -> matchesCategory(normalizedCategory, income.getCategory()))
       .filter(income -> matchesRecurring(normalizedRecurring, income.isRecurring()))
       .filter(income -> matchesDateRange(income.getReceivedAt(), startDate, endDate))
@@ -119,11 +119,17 @@ public class IncomeService {
     return value.trim();
   }
 
-  private boolean matchesQuery(String normalizedQuery, String source) {
+  private boolean matchesQuery(String normalizedQuery, String source, double amount) {
     if (normalizedQuery.isBlank()) {
       return true;
     }
-    return normalizeText(source).contains(normalizedQuery);
+    String normalizedAmount = normalizeText(formatAmountForQuery(amount));
+    return normalizeText(source).contains(normalizedQuery)
+      || normalizedAmount.contains(normalizedQuery);
+  }
+
+  private String formatAmountForQuery(double amount) {
+    return String.format(Locale.US, "%.2f", amount);
   }
 
   private boolean matchesCategory(String normalizedCategory, String category) {

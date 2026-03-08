@@ -66,7 +66,7 @@ public class BillService {
       .orElseGet(Set::of);
 
     return repository.findAll().stream()
-      .filter(bill -> matchesQuery(normalizedQuery, bill.getDescription()))
+      .filter(bill -> matchesQuery(normalizedQuery, bill.getDescription(), bill.getAmount()))
       .filter(bill -> matchesCategory(normalizedCategory, bill.getCategory()))
       .filter(bill -> matchesStatus(normalizedStatus, bill.isPaid()))
       .filter(bill -> matchesRecurring(normalizedRecurring, bill.isRecurring()))
@@ -172,11 +172,17 @@ public class BillService {
     return value.trim();
   }
 
-  private boolean matchesQuery(String normalizedQuery, String description) {
+  private boolean matchesQuery(String normalizedQuery, String description, double amount) {
     if (normalizedQuery.isBlank()) {
       return true;
     }
-    return normalizeText(description).contains(normalizedQuery);
+    String normalizedAmount = normalizeText(formatAmountForQuery(amount));
+    return normalizeText(description).contains(normalizedQuery)
+      || normalizedAmount.contains(normalizedQuery);
+  }
+
+  private String formatAmountForQuery(double amount) {
+    return String.format(Locale.US, "%.2f", amount);
   }
 
   private boolean matchesCategory(String normalizedCategory, String category) {

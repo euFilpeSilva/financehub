@@ -1,7 +1,11 @@
 package com.financehub.backend.modules.statements.api;
 
 import com.financehub.backend.modules.statements.api.dto.OfxImportResponse;
+import com.financehub.backend.modules.statements.api.dto.ImportedStatementYearCleanupRequest;
+import com.financehub.backend.modules.statements.api.dto.ImportedStatementYearCleanupResponse;
+import com.financehub.backend.modules.statements.application.ImportedStatementCleanupService;
 import com.financehub.backend.modules.statements.application.OfxImportService;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,9 +16,14 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1/statements")
 public class StatementImportController {
   private final OfxImportService service;
+  private final ImportedStatementCleanupService importedStatementCleanupService;
 
-  public StatementImportController(OfxImportService service) {
+  public StatementImportController(
+    OfxImportService service,
+    ImportedStatementCleanupService importedStatementCleanupService
+  ) {
     this.service = service;
+    this.importedStatementCleanupService = importedStatementCleanupService;
   }
 
   @PostMapping("/import/ofx")
@@ -25,6 +34,13 @@ public class StatementImportController {
     @RequestParam(defaultValue = "true") boolean applyInternalTransferDetection
   ) {
     return service.importOfx(file, ownerName, ownerCpf, applyInternalTransferDetection);
+  }
+
+  @PostMapping("/cleanup/imported-year")
+  public ImportedStatementYearCleanupResponse cleanupImportedYear(
+    @RequestBody ImportedStatementYearCleanupRequest request
+  ) {
+    return importedStatementCleanupService.cleanupByYear(request);
   }
 }
 

@@ -1,10 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { FileUp, FolderOpen, LucideAngularModule, UploadCloud } from 'lucide-angular';
+import { ImportedStatementYearCleanupResult } from '../../models/finance.models';
 import { FinanceFacade } from '../../services/finance.facade';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/toast/toast.service';
+
+interface StatementCleanupProgressState {
+  running: boolean;
+  status: 'idle' | 'running' | 'success' | 'error';
+  phase: string;
+  progress: number;
+  details: string;
+}
 
 @Component({
   selector: 'app-statements-import-page',
@@ -24,7 +33,61 @@ export class StatementsImportPageComponent {
     ownerName: ['FILIPE SOUSA DA SILVA'],
     ownerCpf: ['05287907141']
   });
+  protected readonly cleanupForm = this.fb.nonNullable.group({
+    year: [new Date().getFullYear()],
+    bankAccountId: ['ALL']
+  });
   protected readonly dragging = signal(false);
+  protected readonly cleanupPreview = signal<ImportedStatementYearCleanupResult | null>(null);
+  protected readonly cleanupHistoryYearFilter = signal('ALL');
+  protected readonly cleanupHistoryActionFilter = signal<'ALL' | 'delete' | 'purge'>('ALL');
+  protected readonly cleanupHistoryYearOptions = computed(() => {
+    const years = new Set<string>();
+    for (const event of this.facade.auditEvents()) {
+      if (
+        event.entityType === 'statement'
+          && (event.action === 'delete' || event.action === 'purge')
+          && event.message.toUpperCase().includes('LIMPEZA DE IMPORTADOS DO ANO')
+      ) {
+        const year = this.extractYearFromCleanupMessage(event.message);
+        if (year) {
+          years.add(String(year));
+        }
+      }
+    }
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  });
+  protected readonly cleanupHistory = computed(() =>
+    this.facade.auditEvents()
+      .filter((event) =>
+        event.entityType === 'statement'
+          && (event.action === 'delete' || event.action === 'purge')
+          && event.message.toUpperCase().includes('LIMPEZA DE IMPORTADOS DO ANO')
+      )
+      .filter((event) => {
+        const actionFilter = this.cleanupHistoryActionFilter();
+        if (actionFilter === 'ALL') {
+          return true;
+        }
+        return event.action === actionFilter;
+      })
+      .filter((event) => {
+        const yearFilter = this.cleanupHistoryYearFilter();
+        if (yearFilter === 'ALL') {
+          return true;
+        }
+        const year = this.extractYearFromCleanupMessage(event.message);
+        return year !== null && String(year) === yearFilter;
+      })
+      .slice(0, 8)
+  );
+  protected readonly cleanupProgress = signal<StatementCleanupProgressState>({
+    running: false,
+    status: 'idle',
+    phase: 'Aguardando',
+    progress: 0,
+    details: 'Selecione o ano para visualizar e executar a limpeza.'
+  });
 
   constructor(protected readonly facade: FinanceFacade) {}
 
@@ -65,6 +128,147 @@ export class StatementsImportPageComponent {
 
   protected hasEligibleIncomeAccount(): boolean {
     return this.facade.bankAccounts().some((account) => account.active && account.primaryIncome);
+  }
+
+  protected async runImportedYearCleanup(): Promise<void> {
+    if (this.cleanupProgress().running) {
+      return;
+    }
+
+    const year = Number(this.cleanupForm.controls.year.value);
+    if (!Number.isFinite(year) || year < 2000 || year > 2100) {
+      this.toast.error('Informe um ano valido entre 2000 e 2100.');
+      return;
+    }
+
+    const selectedBankAccountId = this.cleanupForm.controls.bankAccountId.value;
+    const bankAccountId = selectedBankAccountId === 'ALL' ? null : selectedBankAccountId;
+
+    this.cleanupProgress.set({
+      running: true,
+      status: 'running',
+      phase: 'Analisando dados',
+      progress: 20,
+      details: `Levantando registros importados para ${year}...`
+    });
+
+    let preview: ImportedStatementYearCleanupResult;
+    try {
+      preview = await this.facade.cleanupImportedStatementYear({
+        year,
+        bankAccountId,
+        dryRun: true,
+        permanentDelete: false
+      });
+    } catch {
+      this.cleanupProgress.set({
+        running: false,
+        status: 'error',
+        phase: 'Falha na analise',
+        progress: 100,
+        details: 'Nao foi possivel calcular a previa da limpeza.'
+      });
+      this.toast.error('Falha ao gerar previa da limpeza.');
+      return;
+    }
+
+    this.cleanupPreview.set(preview);
+
+    if (preview.totalMatched === 0) {
+      this.cleanupProgress.set({
+        running: false,
+        status: 'success',
+        phase: 'Nenhum dado encontrado',
+        progress: 100,
+        details: 'Nao existem registros importados para os filtros selecionados.'
+      });
+      this.toast.info('Nenhum dado importado encontrado para o periodo informado.');
+      return;
+    }
+
+    const periodText = `${this.formatDate(preview.startDate)} ate ${this.formatDate(preview.endDate)}`;
+    const scopeText = this.resolveBankScopeLabel(preview.bankAccountId);
+
+    const confirmation = await this.confirmDialog.confirmWithCheckbox({
+      title: 'Confirmar limpeza de importacao',
+      message:
+        `Periodo: ${periodText}. Escopo: ${scopeText}. Registros que serao afetados: ${preview.totalMatched} (Entradas: ${preview.matchedIncomes}, Saidas: ${preview.matchedBills}).`,
+      confirmLabel: 'Executar limpeza',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+      checkboxLabel: 'Excluir definitivamente (se desmarcado, envia para a lixeira)',
+      checkboxDefaultChecked: false
+    });
+
+    if (!confirmation.confirmed) {
+      this.cleanupProgress.set({
+        running: false,
+        status: 'idle',
+        phase: 'Operacao cancelada',
+        progress: 0,
+        details: 'A limpeza foi cancelada antes da execucao.'
+      });
+      return;
+    }
+
+    this.cleanupProgress.set({
+      running: true,
+      status: 'running',
+      phase: confirmation.checkboxChecked ? 'Exclusao definitiva em andamento' : 'Movendo para lixeira',
+      progress: 55,
+      details: confirmation.checkboxChecked
+        ? 'Aplicando exclusao definitiva dos registros selecionados.'
+        : 'Movendo registros selecionados para a lixeira.'
+    });
+
+    try {
+      const result = await this.facade.cleanupImportedStatementYear({
+        year,
+        bankAccountId,
+        dryRun: false,
+        permanentDelete: confirmation.checkboxChecked
+      });
+
+      this.cleanupPreview.set(result);
+      this.cleanupProgress.set({
+        running: false,
+        status: 'success',
+        phase: 'Limpeza concluida',
+        progress: 100,
+        details: confirmation.checkboxChecked
+          ? `${result.totalProcessed} registro(s) excluido(s) definitivamente.`
+          : `${result.totalProcessed} registro(s) enviado(s) para a lixeira.`
+      });
+
+      if (confirmation.checkboxChecked) {
+        this.toast.success(`Limpeza concluida: ${result.totalProcessed} registro(s) excluido(s) definitivamente.`);
+      } else {
+        this.toast.success(`Limpeza concluida: ${result.totalProcessed} registro(s) enviado(s) para a lixeira.`);
+      }
+    } catch {
+      this.cleanupProgress.set({
+        running: false,
+        status: 'error',
+        phase: 'Falha na execucao',
+        progress: 100,
+        details: 'Ocorreu um erro durante a limpeza dos dados importados.'
+      });
+      this.toast.error('Falha ao executar limpeza de dados importados.');
+    }
+  }
+
+  protected clearCleanupProgress(): void {
+    if (this.cleanupProgress().running) {
+      return;
+    }
+    this.cleanupProgress.set({
+      running: false,
+      status: 'idle',
+      phase: 'Aguardando',
+      progress: 0,
+      details: 'Selecione o ano para visualizar e executar a limpeza.'
+    });
+    this.cleanupPreview.set(null);
   }
 
   private async importFiles(fileList: FileList): Promise<void> {
@@ -108,5 +312,56 @@ export class StatementsImportPageComponent {
     this.toast.info(
       `Importacao finalizada com pendencias: ${summary.successCount}/${summary.total} arquivo(s) importado(s).`
     );
+  }
+
+  private resolveBankScopeLabel(bankAccountId: string | null | undefined): string {
+    if (!bankAccountId) {
+      return 'Todas as contas';
+    }
+    const account = this.facade.bankAccounts().find((item) => item.id === bankAccountId);
+    return account?.label ?? 'Conta selecionada';
+  }
+
+  private formatDate(value: string): string {
+    if (!value || value.length < 10) {
+      return value;
+    }
+    const [year, month, day] = value.split('-');
+    return `${day}/${month}/${year}`;
+  }
+
+  protected formatTimestamp(value: string): string {
+    if (!value) {
+      return '-';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toLocaleString('pt-BR');
+  }
+
+  protected setCleanupHistoryYearFilter(value: string): void {
+    this.cleanupHistoryYearFilter.set(value || 'ALL');
+  }
+
+  protected setCleanupHistoryActionFilter(value: string): void {
+    if (value === 'delete' || value === 'purge' || value === 'ALL') {
+      this.cleanupHistoryActionFilter.set(value);
+      return;
+    }
+    this.cleanupHistoryActionFilter.set('ALL');
+  }
+
+  private extractYearFromCleanupMessage(message: string): number | null {
+    if (!message) {
+      return null;
+    }
+    const match = message.match(/ano\s+(\d{4})/i);
+    if (!match) {
+      return null;
+    }
+    const year = Number(match[1]);
+    return Number.isFinite(year) ? year : null;
   }
 }

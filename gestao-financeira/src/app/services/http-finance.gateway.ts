@@ -17,6 +17,8 @@ import {
   DashboardSummary,
   IncomeEntry,
   InternalTransferSuggestion,
+  ImportedStatementYearCleanupRequest,
+  ImportedStatementYearCleanupResult,
   OfxImportProgressEvent,
   OfxImportResult,
   PlanningGoal,
@@ -112,6 +114,7 @@ type OfxImportApi = OfxImportResult;
 type DashboardSummaryApi = DashboardSummary;
 type AccountReconciliationApi = AccountReconciliation;
 type InternalTransferSuggestionApi = InternalTransferSuggestion;
+type ImportedStatementYearCleanupApi = ImportedStatementYearCleanupResult;
 
 type AuditApi = {
   id: string;
@@ -561,6 +564,20 @@ export class HttpFinanceGateway implements FinanceGateway {
     ).pipe(
       map((event) => this.mapOfxImportEvent(event as HttpEvent<OfxImportApi>, file.name)),
       filter((event): event is OfxImportProgressEvent => event !== null)
+    );
+  }
+
+  cleanupImportedStatementYear(
+    payload: ImportedStatementYearCleanupRequest
+  ): Observable<ImportedStatementYearCleanupResult> {
+    return this.http.post<ImportedStatementYearCleanupApi>(
+      `${this.baseUrl}/statements/cleanup/imported-year`,
+      {
+        year: payload.year,
+        bankAccountId: payload.bankAccountId ?? null,
+        dryRun: Boolean(payload.dryRun),
+        permanentDelete: Boolean(payload.permanentDelete)
+      }
     );
   }
 
