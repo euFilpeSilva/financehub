@@ -10,6 +10,9 @@ import com.financehub.backend.modules.incomes.api.dto.IncomeRequest;
 import com.financehub.backend.modules.incomes.application.IncomeService;
 import com.financehub.backend.modules.incomes.domain.Income;
 import com.financehub.backend.modules.statements.api.dto.OfxImportResponse;
+import com.financehub.backend.modules.statements.api.dto.OfxAnalysisGroupResponse;
+import com.financehub.backend.modules.statements.api.dto.OfxAnalysisResponse;
+import com.financehub.backend.modules.statements.api.dto.OfxAnalysisTransactionResponse;
 import com.financehub.backend.modules.transfers.application.InternalTransferService;
 import com.financehub.backend.shared.application.port.AuditPort;
 import java.math.BigDecimal;
@@ -17,10 +20,14 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -131,15 +138,19 @@ public class OfxImportService {
     for (Bill bill : billService.listAll()) {
       existingBillKeys.add(buildBillKey(bill.getDueDate(), bill.getAmount(), bill.getDescription()));
     }
+    Set<String> preImportedBillKeys = new HashSet<>(existingBillKeys);
     Set<String> existingIncomeKeys = new HashSet<>();
     for (Income income : incomeService.listAll()) {
       existingIncomeKeys.add(buildIncomeKey(income.getReceivedAt(), income.getAmount(), income.getSource()));
     }
+    Set<String> preImportedIncomeKeys = new HashSet<>(existingIncomeKeys);
 
     int total = 0;
     int createdBills = 0;
     int createdIncomes = 0;
     int skippedDuplicates = 0;
+    int ignoredAlreadyImported = 0;
+    List<String> ignoredAlreadyImportedSamples = new ArrayList<>();
     boolean legacyTechnicalAccountEnsured = false;
     boolean picPayTechnicalAccountEnsured = false;
     boolean mercadoPagoTechnicalAccountEnsured = false;
@@ -191,6 +202,12 @@ public class OfxImportService {
         String key = buildBillKey(tx.postedAt(), absAmount, tx.memo());
         if (existingBillKeys.contains(key)) {
           skippedDuplicates += 1;
+          if (preImportedBillKeys.contains(key)) {
+            ignoredAlreadyImported += 1;
+            if (ignoredAlreadyImportedSamples.size() < 20) {
+              ignoredAlreadyImportedSamples.add(buildIgnoredSample("SAIDA", tx.postedAt(), absAmount, tx.memo()));
+            }
+          }
           continue;
         }
         billService.create(new BillRequest(
@@ -210,6 +227,12 @@ public class OfxImportService {
         String key = buildIncomeKey(tx.postedAt(), amount, tx.memo());
         if (existingIncomeKeys.contains(key)) {
           skippedDuplicates += 1;
+          if (preImportedIncomeKeys.contains(key)) {
+            ignoredAlreadyImported += 1;
+            if (ignoredAlreadyImportedSamples.size() < 20) {
+              ignoredAlreadyImportedSamples.add(buildIgnoredSample("ENTRADA", tx.postedAt(), amount, tx.memo()));
+            }
+          }
           continue;
         }
         incomeService.create(new IncomeRequest(
@@ -233,6 +256,12 @@ public class OfxImportService {
       String key = buildIncomeKey(tx.postedAt(), amount, tx.memo());
       if (existingIncomeKeys.contains(key)) {
         skippedDuplicates += 1;
+        if (preImportedIncomeKeys.contains(key)) {
+          ignoredAlreadyImported += 1;
+          if (ignoredAlreadyImportedSamples.size() < 20) {
+            ignoredAlreadyImportedSamples.add(buildIgnoredSample("ENTRADA", tx.postedAt(), amount, tx.memo()));
+          }
+        }
         continue;
       }
       incomeService.create(new IncomeRequest(
@@ -263,11 +292,198 @@ public class OfxImportService {
       "statement",
       auditEntityId,
       "import",
-      "Importacao OFX concluida (" + fileName + ") " + periodInfo + " com " + total + " transacoes",
+      "Importacao OFX concluida (" + fileName + ") " + periodInfo + " com " + total + " transacoes"
+        + ", ignoradas: " + skippedDuplicates
+        + " (ja importadas: " + ignoredAlreadyImported + ")",
       null
     );
 
-    return new OfxImportResponse(fileName, total, createdBills, createdIncomes, skippedDuplicates, markedInternalTransfers);
+    if (ignoredAlreadyImported > 0) {
+      String details = ignoredAlreadyImportedSamples.isEmpty()
+        ? ""
+        : " Amostras: " + String.join(" | ", ignoredAlreadyImportedSamples);
+      auditPort.record(
+        "statement",
+        auditEntityId,
+        "import",
+        "Importacao OFX ignorou " + ignoredAlreadyImported + " registros ja importados anteriormente." + details,
+        null
+      );
+    }
+
+    return new OfxImportResponse(
+      fileName,
+      total,
+      createdBills,
+      createdIncomes,
+      skippedDuplicates,
+      ignoredAlreadyImported,
+      markedInternalTransfers
+    );
+  }
+
+  public OfxAnalysisResponse analyzeOfx(List<MultipartFile> files, String ownerName, String ownerCpf) {
+    if (files == null || files.isEmpty()) {
+      throw new IllegalArgumentException("Envie ao menos um arquivo OFX para analise.");
+    }
+
+    List<OfxAnalysisTransactionResponse> transactions = new ArrayList<>();
+    Map<String, GroupAccumulator> grouped = new LinkedHashMap<>();
+    Set<Integer> availableYears = new TreeSet<>();
+    Set<String> availableYearMonths = new TreeSet<>();
+    int totalCredits = 0;
+    int totalDebits = 0;
+
+    for (MultipartFile file : files) {
+      if (file == null || file.isEmpty()) {
+        continue;
+      }
+
+      String fileName = file.getOriginalFilename() == null ? "arquivo.ofx" : file.getOriginalFilename();
+      if (!fileName.toLowerCase(Locale.ROOT).endsWith(".ofx")) {
+        throw new IllegalArgumentException("Arquivo invalido na analise: " + fileName + ". Envie apenas OFX.");
+      }
+
+      String content = readOfxContent(file);
+      if (!content.toUpperCase(Locale.ROOT).contains("<OFX>")) {
+        throw new IllegalArgumentException("Conteudo OFX invalido no arquivo: " + fileName + ".");
+      }
+
+      BankAccount ownerBankAccount = resolveImportedBankAccount(content);
+      String ofxOwnerBankAccountId = ownerBankAccount == null ? null : ownerBankAccount.getId();
+      String ofxOwnerBankLabel = ownerBankAccount == null ? "Banco nao identificado" : ownerBankAccount.getLabel();
+
+      List<OfxTransaction> parsedTransactions = extractTransactionBlocks(content).stream()
+        .map(this::parseTransaction)
+        .filter(tx -> tx != null)
+        .toList();
+      Set<String> itauCardPaymentPairKeys = buildItauCardPaymentPairKeys(parsedTransactions);
+
+      for (OfxTransaction tx : parsedTransactions) {
+        String normalizedMemo = normalizeText(tx.memo());
+        String patternKey = buildMemoPatternKey(normalizedMemo);
+        boolean ignoredByMarker = shouldIgnoreTransaction(tx.memo());
+        boolean itauPairDuplicateCandidate = shouldSkipItauCardPairDuplicate(tx, itauCardPaymentPairKeys);
+        boolean likelyInternalTransfer = detectInternalByMemo(
+          tx.memo(),
+          ownerName,
+          ownerCpf,
+          tx.amount().compareTo(BigDecimal.ZERO) > 0
+        );
+
+        LocalDate postedAt = tx.postedAt();
+        int year = postedAt.getYear();
+        String yearMonth = formatYearMonth(postedAt);
+        availableYears.add(year);
+        availableYearMonths.add(yearMonth);
+
+        double amount = tx.amount().doubleValue();
+        String direction = amount >= 0 ? "credit" : "debit";
+        if (amount >= 0) {
+          totalCredits += 1;
+        } else {
+          totalDebits += 1;
+        }
+
+        transactions.add(new OfxAnalysisTransactionResponse(
+          fileName,
+          ofxOwnerBankAccountId,
+          ofxOwnerBankLabel,
+          postedAt,
+          year,
+          yearMonth,
+          "STMTTRN",
+          amount,
+          direction,
+          tx.memo(),
+          normalizedMemo,
+          patternKey,
+          ignoredByMarker,
+          likelyInternalTransfer,
+          itauPairDuplicateCandidate
+        ));
+
+        GroupAccumulator accumulator = grouped.computeIfAbsent(patternKey, (key) -> new GroupAccumulator(patternKey));
+        accumulator.register(
+          tx.memo(),
+          amount,
+          ignoredByMarker,
+          likelyInternalTransfer,
+          itauPairDuplicateCandidate,
+          year,
+          yearMonth
+        );
+      }
+
+      for (OfxTransaction tx : extractBalanceIncomeBlocks(content)) {
+        String normalizedMemo = normalizeText(tx.memo());
+        String patternKey = buildMemoPatternKey(normalizedMemo);
+        boolean likelyInternalTransfer = detectInternalByMemo(tx.memo(), ownerName, ownerCpf, true);
+        LocalDate postedAt = tx.postedAt();
+        int year = postedAt.getYear();
+        String yearMonth = formatYearMonth(postedAt);
+        availableYears.add(year);
+        availableYearMonths.add(yearMonth);
+
+        double amount = tx.amount().doubleValue();
+        totalCredits += 1;
+
+        transactions.add(new OfxAnalysisTransactionResponse(
+          fileName,
+          ofxOwnerBankAccountId,
+          ofxOwnerBankLabel,
+          postedAt,
+          year,
+          yearMonth,
+          "BAL",
+          amount,
+          "credit",
+          tx.memo(),
+          normalizedMemo,
+          patternKey,
+          false,
+          likelyInternalTransfer,
+          false
+        ));
+
+        GroupAccumulator accumulator = grouped.computeIfAbsent(patternKey, (key) -> new GroupAccumulator(patternKey));
+        accumulator.register(tx.memo(), amount, false, likelyInternalTransfer, false, year, yearMonth);
+      }
+    }
+
+    List<OfxAnalysisGroupResponse> groups = grouped.values().stream()
+      .map(GroupAccumulator::toResponse)
+      .sorted((first, second) -> Integer.compare(second.totalCount(), first.totalCount()))
+      .toList();
+
+    return new OfxAnalysisResponse(
+      files.size(),
+      transactions.size(),
+      totalCredits,
+      totalDebits,
+      new ArrayList<>(availableYears),
+      new ArrayList<>(availableYearMonths),
+      groups,
+      transactions
+    );
+  }
+
+  private String formatYearMonth(LocalDate date) {
+    return String.format(Locale.ROOT, "%04d-%02d", date.getYear(), date.getMonthValue());
+  }
+
+  private String buildMemoPatternKey(String normalizedMemo) {
+    if (normalizedMemo == null || normalizedMemo.isBlank()) {
+      return "SEM DESCRICAO";
+    }
+    return normalizedMemo
+      .replaceAll("\\b\\d{2,}\\b", "<NUM>")
+      .replaceAll("\\s{2,}", " ")
+      .trim();
+  }
+
+  private String buildIgnoredSample(String type, LocalDate date, double amount, String memo) {
+    return type + " " + date + " R$" + String.format(Locale.US, "%.2f", amount) + " " + sanitizeMemo(memo);
   }
 
   private String readOfxContent(MultipartFile file) {
@@ -944,5 +1160,77 @@ public class OfxImportService {
   }
 
   private record OfxTransaction(LocalDate postedAt, BigDecimal amount, String memo) {
+  }
+
+  private static final class GroupAccumulator {
+    private final String patternKey;
+    private String sampleMemo;
+    private int totalCount;
+    private int creditCount;
+    private int debitCount;
+    private int ignoredCount;
+    private int likelyInternalCount;
+    private int itauPairCandidateCount;
+    private double totalCreditAmount;
+    private double totalDebitAmount;
+    private final Set<Integer> years = new TreeSet<>();
+    private final Set<String> yearMonths = new TreeSet<>();
+
+    GroupAccumulator(String patternKey) {
+      this.patternKey = patternKey;
+    }
+
+    void register(
+      String memo,
+      double amount,
+      boolean ignoredByMarker,
+      boolean likelyInternalTransfer,
+      boolean itauPairDuplicateCandidate,
+      int year,
+      String yearMonth
+    ) {
+      if (this.sampleMemo == null || this.sampleMemo.isBlank()) {
+        this.sampleMemo = memo;
+      }
+
+      this.totalCount += 1;
+      if (amount >= 0) {
+        this.creditCount += 1;
+        this.totalCreditAmount += amount;
+      } else {
+        this.debitCount += 1;
+        this.totalDebitAmount += Math.abs(amount);
+      }
+
+      if (ignoredByMarker) {
+        this.ignoredCount += 1;
+      }
+      if (likelyInternalTransfer) {
+        this.likelyInternalCount += 1;
+      }
+      if (itauPairDuplicateCandidate) {
+        this.itauPairCandidateCount += 1;
+      }
+
+      this.years.add(year);
+      this.yearMonths.add(yearMonth);
+    }
+
+    OfxAnalysisGroupResponse toResponse() {
+      return new OfxAnalysisGroupResponse(
+        this.patternKey,
+        this.sampleMemo == null ? "Movimentacao OFX" : this.sampleMemo,
+        this.totalCount,
+        this.creditCount,
+        this.debitCount,
+        this.ignoredCount,
+        this.likelyInternalCount,
+        this.itauPairCandidateCount,
+        this.totalCreditAmount,
+        this.totalDebitAmount,
+        new ArrayList<>(this.years),
+        new ArrayList<>(this.yearMonths)
+      );
+    }
   }
 }

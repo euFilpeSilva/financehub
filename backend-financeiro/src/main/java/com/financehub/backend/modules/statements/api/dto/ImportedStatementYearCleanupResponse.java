@@ -1,12 +1,14 @@
 package com.financehub.backend.modules.statements.api.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record ImportedStatementYearCleanupResponse(
   int year,
+  Integer month,
   LocalDate startDate,
   LocalDate endDate,
-  String bankAccountId,
+  List<String> bankAccountIds,
   boolean dryRun,
   boolean permanentDelete,
   int matchedBills,

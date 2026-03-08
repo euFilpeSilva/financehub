@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Building2, Check, LucideAngularModule, Pencil, Plus, Save, Trash2, X } from 'lucide-angular';
 import { BankAccount } from '../../models/finance.models';
@@ -22,6 +22,12 @@ export class BankAccountsPageComponent {
   protected readonly X = X;
 
   protected editingId: string | null = null;
+  protected readonly selectedAccountIds = signal<Set<string>>(new Set());
+  protected readonly selectedCount = computed(() => this.selectedAccountIds().size);
+  protected readonly allSelectableSelected = computed(() => {
+    const accounts = this.facade.bankAccounts();
+    return accounts.length > 0 && this.selectedCount() === accounts.length;
+  });
 
   private readonly fb = inject(FormBuilder);
   private readonly confirmDialog = inject(ConfirmDialogService);
@@ -37,6 +43,13 @@ export class BankAccountsPageComponent {
   });
 
   constructor(protected readonly facade: FinanceFacade) {
+    effect(() => {
+      const validIds = new Set(this.facade.bankAccounts().map((account) => account.id));
+      const next = new Set(Array.from(this.selectedAccountIds()).filter((id) => validIds.has(id)));
+      if (next.size !== this.selectedAccountIds().size) {
+        this.selectedAccountIds.set(next);
+      }
+    });
   }
 
   protected async save(): Promise<void> {
@@ -129,6 +142,57 @@ export class BankAccountsPageComponent {
     }
 
     this.facade.deleteBankAccount(account.id);
+  }
+
+  protected toggleSelection(accountId: string): void {
+    const next = new Set(this.selectedAccountIds());
+    if (next.has(accountId)) {
+      next.delete(accountId);
+    } else {
+      next.add(accountId);
+    }
+    this.selectedAccountIds.set(next);
+  }
+
+  protected toggleSelectAll(): void {
+    if (this.allSelectableSelected()) {
+      this.selectedAccountIds.set(new Set());
+      return;
+    }
+    this.selectedAccountIds.set(new Set(this.facade.bankAccounts().map((account) => account.id)));
+  }
+
+  protected isSelected(accountId: string): boolean {
+    return this.selectedAccountIds().has(accountId);
+  }
+
+  protected async removeSelected(): Promise<void> {
+    const selectedIds = Array.from(this.selectedAccountIds());
+    if (!selectedIds.length) {
+      return;
+    }
+
+    const selectedAccounts = this.facade.bankAccounts().filter((account) => selectedIds.includes(account.id));
+    const sampleLabels = selectedAccounts.slice(0, 4).map((account) => account.label).join(', ');
+    const extraCount = selectedAccounts.length > 4 ? ` e mais ${selectedAccounts.length - 4}` : '';
+
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Excluir contas selecionadas',
+      message: `Deseja excluir ${selectedAccounts.length} conta(s)? ${sampleLabels}${extraCount}`,
+      confirmLabel: 'Excluir em massa',
+      tone: 'danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    if (this.editingId && selectedIds.includes(this.editingId)) {
+      this.resetForm();
+    }
+
+    this.facade.deleteBankAccounts(selectedIds);
+    this.selectedAccountIds.set(new Set());
   }
 
   private resetForm(): void {

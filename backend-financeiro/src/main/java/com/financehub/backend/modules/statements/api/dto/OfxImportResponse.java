@@ -6,6 +6,7 @@ public record OfxImportResponse(
   int createdBills,
   int createdIncomes,
   int skippedDuplicates,
+  int ignoredAlreadyImported,
   int internalTransfersMarked
 ) {
 }

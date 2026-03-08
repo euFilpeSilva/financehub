@@ -11,6 +11,7 @@ import {
   InternalTransferSuggestion,
   ImportedStatementYearCleanupRequest,
   ImportedStatementYearCleanupResult,
+  OfxAnalysisResult,
   OfxImportBatchProgress,
   OfxImportProgressEvent,
   OfxImportResult,
@@ -331,6 +332,25 @@ export class FinanceFacade {
       },
       'Falha ao remover conta bancaria.',
       'Conta bancaria removida com sucesso.'
+    );
+  }
+
+  deleteBankAccounts(ids: string[]): void {
+    const uniqueIds = Array.from(new Set(ids.filter((id) => typeof id === 'string' && id.trim().length > 0)));
+    if (!uniqueIds.length) {
+      return;
+    }
+
+    this.execute(
+      forkJoin(uniqueIds.map((id) => this.gateway.deleteBankAccount(id))),
+      () => {
+        for (const id of uniqueIds) {
+          this.bankAccountsFacade.removeBankAccount(id);
+        }
+        this.refreshAuditEvents();
+      },
+      'Falha ao remover contas bancarias selecionadas.',
+      `${uniqueIds.length} conta(s) bancaria(s) removida(s) com sucesso.`
     );
   }
 
@@ -723,6 +743,22 @@ export class FinanceFacade {
       return result;
     } catch {
       const message = 'Falha ao limpar dados importados do extrato.';
+      this.lastError.set(message);
+      this.emitNotice('error', message);
+      throw new Error(message);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async analyzeOfxStatements(files: File[], ownerName?: string, ownerCpf?: string): Promise<OfxAnalysisResult> {
+    this.loading.set(true);
+    this.lastError.set(null);
+
+    try {
+      return await firstValueFrom(this.gateway.analyzeOfxStatements(files, ownerName, ownerCpf));
+    } catch {
+      const message = 'Falha ao analisar arquivos OFX.';
       this.lastError.set(message);
       this.emitNotice('error', message);
       throw new Error(message);

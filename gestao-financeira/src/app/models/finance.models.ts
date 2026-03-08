@@ -157,21 +157,68 @@ export interface OfxImportResult {
   createdBills: number;
   createdIncomes: number;
   skippedDuplicates: number;
+  ignoredAlreadyImported: number;
   internalTransfersMarked: number;
+}
+
+export interface OfxAnalysisTransaction {
+  fileName: string;
+  ofxOwnerBankAccountId?: string | null;
+  ofxOwnerBankLabel?: string | null;
+  postedAt: string;
+  year: number;
+  yearMonth: string;
+  sourceType: 'STMTTRN' | 'BAL';
+  amount: number;
+  direction: 'credit' | 'debit';
+  memo: string;
+  normalizedMemo: string;
+  patternKey: string;
+  ignoredByMarker: boolean;
+  likelyInternalTransfer: boolean;
+  itauPairDuplicateCandidate: boolean;
+}
+
+export interface OfxAnalysisGroup {
+  patternKey: string;
+  sampleMemo: string;
+  totalCount: number;
+  creditCount: number;
+  debitCount: number;
+  ignoredCount: number;
+  likelyInternalCount: number;
+  itauPairCandidateCount: number;
+  totalCreditAmount: number;
+  totalDebitAmount: number;
+  years: number[];
+  yearMonths: string[];
+}
+
+export interface OfxAnalysisResult {
+  totalFiles: number;
+  totalTransactions: number;
+  totalCredits: number;
+  totalDebits: number;
+  availableYears: number[];
+  availableYearMonths: string[];
+  groups: OfxAnalysisGroup[];
+  transactions: OfxAnalysisTransaction[];
 }
 
 export interface ImportedStatementYearCleanupRequest {
   year: number;
-  bankAccountId?: string | null;
+  month?: number | null;
+  bankAccountIds?: string[] | null;
   dryRun: boolean;
   permanentDelete: boolean;
 }
 
 export interface ImportedStatementYearCleanupResult {
   year: number;
+  month?: number | null;
   startDate: string;
   endDate: string;
-  bankAccountId?: string | null;
+  bankAccountIds?: string[] | null;
   dryRun: boolean;
   permanentDelete: boolean;
   matchedBills: number;

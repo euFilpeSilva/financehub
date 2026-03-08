@@ -10,8 +10,11 @@ import com.financehub.backend.modules.statements.api.dto.ImportedStatementYearCl
 import com.financehub.backend.shared.application.port.AuditPort;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,20 +42,21 @@ public class ImportedStatementCleanupService {
   @Transactional
   public ImportedStatementYearCleanupResponse cleanupByYear(ImportedStatementYearCleanupRequest request) {
     int year = validateYear(request.year());
-    String normalizedBankAccountId = normalizeOptionalId(request.bankAccountId());
-    LocalDate startDate = LocalDate.of(year, 1, 1);
-    LocalDate endDate = LocalDate.of(year, 12, 31);
+    Integer month = validateMonth(request.month());
+    Set<String> normalizedBankAccountIds = normalizeOptionalIds(request.bankAccountIds());
+    LocalDate startDate = resolveStartDate(year, month);
+    LocalDate endDate = resolveEndDate(year, month);
 
     List<Bill> matchedBills = billRepository.findAll().stream()
       .filter(bill -> isImportedCategory(bill.getCategory()))
-      .filter(bill -> isDateWithinYear(bill.getDueDate(), startDate, endDate))
-      .filter(bill -> matchesBankAccount(normalizedBankAccountId, bill.getBankAccountId()))
+      .filter(bill -> isDateWithinRange(bill.getDueDate(), startDate, endDate))
+      .filter(bill -> matchesBankAccount(normalizedBankAccountIds, bill.getBankAccountId()))
       .toList();
 
     List<Income> matchedIncomes = incomeRepository.findAll().stream()
       .filter(income -> isImportedCategory(income.getCategory()))
-      .filter(income -> isDateWithinYear(income.getReceivedAt(), startDate, endDate))
-      .filter(income -> matchesBankAccount(normalizedBankAccountId, income.getBankAccountId()))
+      .filter(income -> isDateWithinRange(income.getReceivedAt(), startDate, endDate))
+      .filter(income -> matchesBankAccount(normalizedBankAccountIds, income.getBankAccountId()))
       .toList();
 
     int processedBills = 0;
@@ -87,13 +91,17 @@ public class ImportedStatementCleanupService {
 
       int totalProcessed = processedBills + processedIncomes;
       if (totalProcessed > 0) {
-        String scope = normalizedBankAccountId == null ? "todas as contas" : "conta " + normalizedBankAccountId;
+        String scope = normalizedBankAccountIds.isEmpty()
+          ? "todas as contas"
+          : normalizedBankAccountIds.size() == 1
+            ? "conta " + normalizedBankAccountIds.iterator().next()
+            : normalizedBankAccountIds.size() + " contas selecionadas";
         String mode = request.permanentDelete() ? "exclusao definitiva" : "envio para lixeira";
         auditPort.record(
           "statement",
           "imported-cleanup-" + year,
           request.permanentDelete() ? "purge" : "delete",
-          "Limpeza de importados do ano " + year + " executada para " + scope + " em modo " + mode
+          "Limpeza de importados do ano " + year + resolveMonthAuditSuffix(month) + " executada para " + scope + " em modo " + mode
             + ": " + processedBills + " saidas e " + processedIncomes + " entradas.",
           null
         );
@@ -105,9 +113,10 @@ public class ImportedStatementCleanupService {
 
     return new ImportedStatementYearCleanupResponse(
       year,
+      month,
       startDate,
       endDate,
-      normalizedBankAccountId,
+      List.copyOf(normalizedBankAccountIds),
       request.dryRun(),
       request.permanentDelete(),
       matchedBills.size(),
@@ -128,22 +137,65 @@ public class ImportedStatementCleanupService {
     return year;
   }
 
+  private Integer validateMonth(Integer month) {
+    if (month == null) {
+      return null;
+    }
+    if (month < 1 || month > 12) {
+      throw new IllegalArgumentException("Mes invalido para limpeza. Use um valor entre 1 e 12.");
+    }
+    return month;
+  }
+
+  private LocalDate resolveStartDate(int year, Integer month) {
+    if (month == null) {
+      return LocalDate.of(year, 1, 1);
+    }
+    return LocalDate.of(year, month, 1);
+  }
+
+  private LocalDate resolveEndDate(int year, Integer month) {
+    if (month == null) {
+      return LocalDate.of(year, 12, 31);
+    }
+    YearMonth yearMonth = YearMonth.of(year, month);
+    return yearMonth.atEndOfMonth();
+  }
+
+  private String resolveMonthAuditSuffix(Integer month) {
+    if (month == null) {
+      return "";
+    }
+    return ", mes " + String.format(Locale.ROOT, "%02d", month);
+  }
+
   private boolean isImportedCategory(String category) {
     return normalizeText(category).contains(IMPORTED_STATEMENT_CATEGORY_MARKER);
   }
 
-  private boolean isDateWithinYear(LocalDate value, LocalDate startDate, LocalDate endDate) {
+  private boolean isDateWithinRange(LocalDate value, LocalDate startDate, LocalDate endDate) {
     if (value == null) {
       return false;
     }
     return !value.isBefore(startDate) && !value.isAfter(endDate);
   }
 
-  private boolean matchesBankAccount(String selectedBankAccountId, String entityBankAccountId) {
-    if (selectedBankAccountId == null) {
+  private boolean matchesBankAccount(Set<String> selectedBankAccountIds, String entityBankAccountId) {
+    if (selectedBankAccountIds.isEmpty()) {
       return true;
     }
-    return selectedBankAccountId.equals(normalizeOptionalId(entityBankAccountId));
+    String normalizedEntityBankAccountId = normalizeOptionalId(entityBankAccountId);
+    return normalizedEntityBankAccountId != null && selectedBankAccountIds.contains(normalizedEntityBankAccountId);
+  }
+
+  private Set<String> normalizeOptionalIds(List<String> values) {
+    if (values == null || values.isEmpty()) {
+      return Set.of();
+    }
+    return values.stream()
+      .map(this::normalizeOptionalId)
+      .filter(item -> item != null && !item.isBlank())
+      .collect(Collectors.toSet());
   }
 
   private String normalizeOptionalId(String value) {

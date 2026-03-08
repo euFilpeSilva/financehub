@@ -14,6 +14,7 @@ import {
   ImportedStatementYearCleanupResult,
   OfxImportProgressEvent,
   OfxImportResult,
+  OfxAnalysisResult,
   PlanningGoal,
   SpendingGoal,
   SpendingGoalStatus,
@@ -130,6 +131,7 @@ export interface FinanceGateway {
   cleanupImportedStatementYear(
     payload: ImportedStatementYearCleanupRequest
   ): Observable<ImportedStatementYearCleanupResult>;
+  analyzeOfxStatements(files: File[], ownerName?: string, ownerCpf?: string): Observable<OfxAnalysisResult>;
 }
 
 export const FINANCE_GATEWAY = new InjectionToken<FinanceGateway>('FINANCE_GATEWAY');

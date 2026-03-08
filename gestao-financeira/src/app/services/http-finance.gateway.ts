@@ -21,6 +21,7 @@ import {
   ImportedStatementYearCleanupResult,
   OfxImportProgressEvent,
   OfxImportResult,
+  OfxAnalysisResult,
   PlanningGoal,
   SpendingGoal,
   SpendingGoalStatus,
@@ -115,6 +116,7 @@ type DashboardSummaryApi = DashboardSummary;
 type AccountReconciliationApi = AccountReconciliation;
 type InternalTransferSuggestionApi = InternalTransferSuggestion;
 type ImportedStatementYearCleanupApi = ImportedStatementYearCleanupResult;
+type OfxAnalysisApi = OfxAnalysisResult;
 
 type AuditApi = {
   id: string;
@@ -574,11 +576,32 @@ export class HttpFinanceGateway implements FinanceGateway {
       `${this.baseUrl}/statements/cleanup/imported-year`,
       {
         year: payload.year,
-        bankAccountId: payload.bankAccountId ?? null,
+        month: payload.month ?? null,
+        bankAccountIds: payload.bankAccountIds ?? null,
         dryRun: Boolean(payload.dryRun),
         permanentDelete: Boolean(payload.permanentDelete)
       }
     );
+  }
+
+  analyzeOfxStatements(files: File[], ownerName?: string, ownerCpf?: string): Observable<OfxAnalysisResult> {
+    const validFiles = files.filter((file) => file && file.name.toLowerCase().endsWith('.ofx'));
+    if (!validFiles.length) {
+      return this.http.post<OfxAnalysisApi>(`${this.baseUrl}/statements/analyze/ofx`, new FormData());
+    }
+
+    const formData = new FormData();
+    for (const file of validFiles) {
+      formData.append('files', file, file.name);
+    }
+    if (ownerName && ownerName.trim().length > 0) {
+      formData.append('ownerName', ownerName.trim());
+    }
+    if (ownerCpf && ownerCpf.trim().length > 0) {
+      formData.append('ownerCpf', ownerCpf.trim());
+    }
+
+    return this.http.post<OfxAnalysisApi>(`${this.baseUrl}/statements/analyze/ofx`, formData);
   }
 
   private mapOfxImportEvent(event: HttpEvent<OfxImportApi>, fileName: string): OfxImportProgressEvent | null {

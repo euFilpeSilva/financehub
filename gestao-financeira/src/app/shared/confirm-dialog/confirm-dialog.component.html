@@ -2,12 +2,12 @@
   <div class="absolute inset-0 bg-slate-900/55"></div>
   <div class="absolute inset-0 flex items-center justify-center p-4">
     <article class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
-      <div class="mb-3 flex items-start gap-3">
+      <div class="mb-3 flex items-start gap-2.5">
         <span
-          class="inline-flex h-9 w-9 items-center justify-center rounded-xl"
+          class="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
           [ngClass]="dialog.state().tone === 'danger' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'"
         >
-          <lucide-angular [img]="AlertTriangle" [size]="18"></lucide-angular>
+          <lucide-angular [img]="AlertTriangle" [size]="20"></lucide-angular>
         </span>
         <div>
           <h3 class="text-base font-bold text-slate-900">{{ dialog.state().title }}</h3>

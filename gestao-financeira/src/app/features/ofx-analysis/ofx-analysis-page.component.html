@@ -1,0 +1,263 @@
+<div class="space-y-6">
+  <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-bold text-slate-900">
+          Analise OFX
+          <span class="group relative ml-1 inline-flex align-middle">
+            <span class="inline-flex size-5 cursor-help items-center justify-center rounded-full border border-slate-300 text-xs font-bold text-slate-500">?</span>
+            <span class="pointer-events-none absolute left-1/2 top-6 z-10 w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 text-[11px] font-medium leading-4 text-slate-700 opacity-0 shadow-lg transition group-hover:opacity-100">
+              Use esta tela para investigar padroes de descricao e flags que podem gerar classificacao inesperada na importacao OFX.
+            </span>
+          </span>
+        </h2>
+        <p class="text-sm text-slate-600">Envie um ou mais arquivos OFX para identificar padroes de descricao e transacoes que podem impactar a importacao.</p>
+      </div>
+      <lucide-angular [img]="FileSearch" [size]="22" class="text-brand-600"></lucide-angular>
+    </div>
+
+    <form [formGroup]="uploadForm" class="grid gap-3 md:grid-cols-4">
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2">
+        Nome titular (opcional)
+        <input type="text" formControlName="ownerName" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-1">
+        CPF titular (opcional)
+        <input type="text" formControlName="ownerCpf" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <div class="flex items-end gap-2 md:justify-end">
+        <label class="inline-flex h-10 cursor-pointer items-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700">
+          Selecionar OFX
+          <input type="file" accept=".ofx" multiple class="hidden" (change)="onFileSelection($event)" />
+        </label>
+        <button
+          type="button"
+          (click)="runAnalysis()"
+          class="inline-flex h-10 items-center rounded-xl bg-slate-900 px-4 text-sm font-bold text-white"
+          [disabled]="busy()"
+          [class.opacity-60]="busy()"
+        >
+          Analisar
+        </button>
+      </div>
+    </form>
+
+    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+      <span class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">Arquivos selecionados: {{ selectedFiles().length }}</span>
+      <button type="button" (click)="clearAll()" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+        Limpar analise
+      </button>
+    </div>
+  </article>
+
+  <article *ngIf="analysis() as result" class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="grid gap-3 md:grid-cols-4">
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Arquivos</p>
+        <p class="mt-1 text-lg font-bold text-slate-900">{{ result.totalFiles }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Transacoes</p>
+        <p class="mt-1 text-lg font-bold text-slate-900">{{ result.totalTransactions }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Entradas</p>
+        <p class="mt-1 text-lg font-bold text-emerald-700">{{ result.totalCredits }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Saidas</p>
+        <p class="mt-1 text-lg font-bold text-rose-700">{{ result.totalDebits }}</p>
+      </div>
+    </div>
+
+    <form [formGroup]="filterForm" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Data inicial
+        <input type="date" formControlName="startDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Data final
+        <input type="date" formControlName="endDate" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Banco dono do OFX
+        <select formControlName="ownerBankAccountId" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todos</option>
+          <option *ngFor="let bank of ownerBankOptions()" [value]="bank.value">{{ bank.label }}</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Ano
+        <select formControlName="year" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todos</option>
+          <option *ngFor="let year of result.availableYears" [value]="year">{{ year }}</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Mes
+        <select formControlName="month" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todos</option>
+          <option *ngFor="let month of monthOptions()" [value]="month">{{ month }}</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Direcao
+        <select formControlName="direction" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todas</option>
+          <option value="credit">Entradas</option>
+          <option value="debit">Saidas</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
+        Tipo OFX
+        <select formControlName="sourceType" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="ALL">Todos</option>
+          <option value="STMTTRN">STMTTRN</option>
+          <option value="BAL">BAL (rendimento)</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:col-span-2 xl:col-span-6">
+        Nome / padrao / descricao
+        <input type="text" formControlName="query" placeholder="Ex.: NuInvest, PIX, Rendimento" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+      </label>
+      <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 xl:col-span-2">
+        <input type="checkbox" formControlName="ignoredOnly" class="size-4 rounded border-slate-300" />
+        Somente ignoradas
+      </label>
+      <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 xl:col-span-2">
+        <input type="checkbox" formControlName="internalOnly" class="size-4 rounded border-slate-300" />
+        Somente internas
+      </label>
+      <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 xl:col-span-2">
+        <input type="checkbox" formControlName="duplicatePairOnly" class="size-4 rounded border-slate-300" />
+        Somente possivel par duplicado
+        <span class="group relative inline-flex">
+          <span class="inline-flex size-4 cursor-help items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-500">?</span>
+          <span class="pointer-events-none absolute right-0 top-5 z-10 w-64 rounded-lg border border-slate-200 bg-white p-2 text-[11px] font-medium leading-4 text-slate-700 opacity-0 shadow-lg transition group-hover:opacity-100">
+            Mostra transacoes marcadas como possivel par duplicado por heuristica, como lancamentos espelho com mesma data e valor.
+          </span>
+        </span>
+      </label>
+    </form>
+
+    <div class="mt-5 grid gap-4 xl:grid-cols-2">
+      <section class="rounded-2xl border border-slate-100">
+        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <h3 class="text-sm font-bold text-slate-900">
+            Grupos por padrao de nome
+            <span class="group relative ml-1 inline-flex align-middle">
+              <span class="inline-flex size-4 cursor-help items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-500">?</span>
+              <span class="pointer-events-none absolute left-1/2 top-5 z-10 w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 text-[11px] font-medium leading-4 text-slate-700 opacity-0 shadow-lg transition group-hover:opacity-100">
+                Clique em um grupo para ver somente as transacoes dele na tabela ao lado. Clique novamente para remover o filtro.
+              </span>
+            </span>
+          </h3>
+          <button
+            *ngIf="selectedPatternKey()"
+            type="button"
+            (click)="clearPatternSelection()"
+            class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+          >
+            Limpar selecao
+          </button>
+        </div>
+        <div class="max-h-[380px] overflow-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-3 py-2 text-left">Padrao</th>
+                <th class="px-3 py-2 text-left">Qtd</th>
+                <th class="px-3 py-2 text-left">Entradas</th>
+                <th class="px-3 py-2 text-left">Saidas</th>
+                <th class="px-3 py-2 text-left">
+                  Flags
+                  <span class="group relative ml-1 inline-flex align-middle">
+                    <span class="inline-flex size-4 cursor-help items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-500">?</span>
+                    <span class="pointer-events-none absolute left-1/2 top-5 z-10 w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 text-[11px] font-medium leading-4 text-slate-700 opacity-0 shadow-lg transition group-hover:opacity-100">
+                      Ignoradas: marcadas para ignorar na importacao. Internas: provavel transferencia interna. Par duplicado: possivel lancamento espelho.
+                    </span>
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+              <tr
+                *ngFor="let group of groupedPatterns()"
+                (click)="togglePatternSelection(group.patternKey)"
+                class="cursor-pointer transition hover:bg-slate-50"
+                [ngClass]="isPatternSelected(group.patternKey) ? 'bg-brand-50/60' : ''"
+              >
+                <td class="px-3 py-2">
+                  <p class="font-semibold text-slate-800">{{ group.patternKey }}</p>
+                  <p class="text-xs text-slate-500">{{ group.sampleMemo }}</p>
+                </td>
+                <td class="px-3 py-2 text-slate-700">{{ group.totalCount }}</td>
+                <td class="px-3 py-2 text-emerald-700">{{ group.totalCreditAmount | currency:'BRL':'symbol':'1.2-2' }}</td>
+                <td class="px-3 py-2 text-rose-700">{{ group.totalDebitAmount | currency:'BRL':'symbol':'1.2-2' }}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">
+                  <p>Ignoradas: {{ group.ignoredCount }}</p>
+                  <p>Internas: {{ group.internalCount }}</p>
+                  <p>Par duplicado: {{ group.duplicatePairCount }}</p>
+                </td>
+              </tr>
+              <tr *ngIf="groupedPatterns().length === 0">
+                <td colspan="5" class="px-3 py-4 text-center text-sm text-slate-500">Nenhum grupo encontrado para os filtros aplicados.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-slate-100">
+        <div class="border-b border-slate-100 px-4 py-3">
+          <h3 class="text-sm font-bold text-slate-900">
+            Transacoes analisadas ({{ displayedTransactions().length }})
+            <span class="group relative ml-1 inline-flex align-middle">
+              <span class="inline-flex size-4 cursor-help items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-500">?</span>
+              <span class="pointer-events-none absolute left-1/2 top-5 z-10 w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 text-[11px] font-medium leading-4 text-slate-700 opacity-0 shadow-lg transition group-hover:opacity-100">
+                A tabela respeita todos os filtros e, se um grupo estiver selecionado, exibe somente as transacoes daquele padrao.
+              </span>
+            </span>
+          </h3>
+        </div>
+        <div class="max-h-[380px] overflow-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-3 py-2 text-left">Data</th>
+                <th class="px-3 py-2 text-left">Descricao</th>
+                <th class="px-3 py-2 text-left">Valor</th>
+                <th class="px-3 py-2 text-left">Banco OFX</th>
+                <th class="px-3 py-2 text-left">Arquivo</th>
+                <th class="px-3 py-2 text-left">Flags</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+              <tr *ngFor="let item of displayedTransactions()">
+                <td class="px-3 py-2 text-slate-600">{{ item.postedAt | date:'dd/MM/yyyy' }}</td>
+                <td class="px-3 py-2 text-slate-800">
+                  <p>{{ item.memo }}</p>
+                  <p class="text-xs text-slate-500">{{ item.patternKey }}</p>
+                </td>
+                <td class="px-3 py-2" [ngClass]="item.direction === 'credit' ? 'text-emerald-700' : 'text-rose-700'">
+                  {{ item.amount | currency:'BRL':'symbol':'1.2-2' }}
+                </td>
+                <td class="px-3 py-2 text-xs text-slate-700">{{ item.ofxOwnerBankLabel || 'Banco nao identificado' }}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">{{ item.fileName }}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">
+                  <span *ngIf="item.ignoredByMarker">Ignorada </span>
+                  <span *ngIf="item.likelyInternalTransfer">Interna </span>
+                  <span *ngIf="item.itauPairDuplicateCandidate">Possivel par</span>
+                  <span *ngIf="!item.ignoredByMarker && !item.likelyInternalTransfer && !item.itauPairDuplicateCandidate">-</span>
+                </td>
+              </tr>
+              <tr *ngIf="displayedTransactions().length === 0">
+                <td colspan="6" class="px-3 py-4 text-center text-sm text-slate-500">Nenhuma transacao encontrada para os filtros aplicados.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </article>
+</div>

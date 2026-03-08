@@ -32,6 +32,11 @@ export const routes: Routes = [
       import('./features/statements-import/statements-import-page.component').then((m) => m.StatementsImportPageComponent)
   },
   {
+    path: 'analise-ofx',
+    loadComponent: () =>
+      import('./features/ofx-analysis/ofx-analysis-page.component').then((m) => m.OfxAnalysisPageComponent)
+  },
+  {
     path: 'contas-bancarias',
     loadComponent: () =>
       import('./features/bank-accounts/bank-accounts-page.component').then((m) => m.BankAccountsPageComponent)
