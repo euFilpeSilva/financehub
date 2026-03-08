@@ -210,6 +210,43 @@ export class OfxAnalysisPageComponent {
     return Array.from(map.values()).sort((a, b) => b.totalCount - a.totalCount);
   });
 
+  protected readonly groupedPatternsSummary = computed(() => {
+    let totalItems = 0;
+    let totalCredits = 0;
+    let totalDebits = 0;
+    for (const group of this.groupedPatterns()) {
+      totalItems += group.totalCount;
+      totalCredits += group.totalCreditAmount;
+      totalDebits += group.totalDebitAmount;
+    }
+    return {
+      totalItems,
+      totalCredits,
+      totalDebits,
+      netAmount: totalCredits - totalDebits
+    };
+  });
+
+  protected readonly displayedTransactionsSummary = computed(() => {
+    let totalItems = 0;
+    let totalCredits = 0;
+    let totalDebits = 0;
+    for (const item of this.displayedTransactions()) {
+      totalItems += 1;
+      if (item.amount >= 0) {
+        totalCredits += item.amount;
+      } else {
+        totalDebits += Math.abs(item.amount);
+      }
+    }
+    return {
+      totalItems,
+      totalCredits,
+      totalDebits,
+      netAmount: totalCredits - totalDebits
+    };
+  });
+
   constructor(protected readonly facade: FinanceFacade) {}
 
   protected onFileSelection(event: Event): void {
@@ -284,5 +321,213 @@ export class OfxAnalysisPageComponent {
 
   protected isPatternSelected(patternKey: string): boolean {
     return this.selectedPatternKey() === patternKey;
+  }
+
+  protected exportFilteredCsv(): void {
+    const groups = this.groupedPatterns();
+    const transactions = this.displayedTransactions();
+    if (!groups.length && !transactions.length) {
+      this.toast.error('Nao ha dados filtrados para exportar.');
+      return;
+    }
+
+    const lines: string[] = [];
+    lines.push('RESUMO;METRICA;VALOR');
+    lines.push(`GRUPOS FILTRADOS;Quantidade;${this.groupedPatternsSummary().totalItems}`);
+    lines.push(`GRUPOS FILTRADOS;Entradas;${this.groupedPatternsSummary().totalCredits.toFixed(2)}`);
+    lines.push(`GRUPOS FILTRADOS;Saidas;${this.groupedPatternsSummary().totalDebits.toFixed(2)}`);
+    lines.push(`GRUPOS FILTRADOS;Saldo liquido;${this.groupedPatternsSummary().netAmount.toFixed(2)}`);
+    lines.push(`TRANSACOES EXIBIDAS;Quantidade;${this.displayedTransactionsSummary().totalItems}`);
+    lines.push(`TRANSACOES EXIBIDAS;Entradas;${this.displayedTransactionsSummary().totalCredits.toFixed(2)}`);
+    lines.push(`TRANSACOES EXIBIDAS;Saidas;${this.displayedTransactionsSummary().totalDebits.toFixed(2)}`);
+    lines.push(`TRANSACOES EXIBIDAS;Saldo liquido;${this.displayedTransactionsSummary().netAmount.toFixed(2)}`);
+    lines.push('');
+
+    lines.push('GRUPOS');
+    lines.push('PADRAO;AMOSTRA;QTD;ENTRADAS_VALOR;SAIDAS_VALOR;IGNORADAS;INTERNAS;PAR_DUPLICADO');
+    for (const group of groups) {
+      lines.push([
+        this.csvCell(group.patternKey),
+        this.csvCell(group.sampleMemo),
+        group.totalCount,
+        group.totalCreditAmount.toFixed(2),
+        group.totalDebitAmount.toFixed(2),
+        group.ignoredCount,
+        group.internalCount,
+        group.duplicatePairCount
+      ].join(';'));
+    }
+    lines.push('');
+
+    lines.push('TRANSACOES');
+    lines.push('DATA;ANO_MES;DIRECAO;VALOR;BANCO_OFX;ARQUIVO;PADRAO;DESCRICAO;IGNORADA;INTERNA;PAR_DUPLICADO');
+    for (const item of transactions) {
+      lines.push([
+        this.csvCell(item.postedAt),
+        this.csvCell(item.yearMonth),
+        this.csvCell(item.direction),
+        item.amount.toFixed(2),
+        this.csvCell(item.ofxOwnerBankLabel || 'Banco nao identificado'),
+        this.csvCell(item.fileName),
+        this.csvCell(item.patternKey),
+        this.csvCell(item.memo),
+        item.ignoredByMarker ? 'SIM' : 'NAO',
+        item.likelyInternalTransfer ? 'SIM' : 'NAO',
+        item.itauPairDuplicateCandidate ? 'SIM' : 'NAO'
+      ].join(';'));
+    }
+
+    const csvContent = '\uFEFF' + lines.join('\n');
+    this.downloadTextFile(`ofx-analise-filtrada-${this.timestampForFile()}.csv`, 'text/csv;charset=utf-8;', csvContent);
+    this.toast.success('Exportacao CSV concluida.');
+  }
+
+  protected exportFilteredPdf(): void {
+    const groups = this.groupedPatterns();
+    const transactions = this.displayedTransactions();
+    if (!groups.length && !transactions.length) {
+      this.toast.error('Nao ha dados filtrados para exportar.');
+      return;
+    }
+
+    const now = new Date();
+    const summaryGroups = this.groupedPatternsSummary();
+    const summaryTransactions = this.displayedTransactionsSummary();
+
+    const groupsRows = groups.map((group) => `
+      <tr>
+        <td>${this.escapeHtml(group.patternKey)}</td>
+        <td>${group.totalCount}</td>
+        <td>${this.formatCurrency(group.totalCreditAmount)}</td>
+        <td>${this.formatCurrency(group.totalDebitAmount)}</td>
+        <td>${group.ignoredCount}</td>
+        <td>${group.internalCount}</td>
+        <td>${group.duplicatePairCount}</td>
+      </tr>
+    `).join('');
+
+    const txRows = transactions.map((item) => `
+      <tr>
+        <td>${this.escapeHtml(this.formatDate(item.postedAt))}</td>
+        <td>${this.escapeHtml(item.yearMonth)}</td>
+        <td>${this.escapeHtml(item.direction)}</td>
+        <td>${this.formatCurrency(item.amount)}</td>
+        <td>${this.escapeHtml(item.ofxOwnerBankLabel || 'Banco nao identificado')}</td>
+        <td>${this.escapeHtml(item.fileName)}</td>
+        <td>${this.escapeHtml(item.patternKey)}</td>
+        <td>${this.escapeHtml(item.memo)}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Analise OFX Filtrada</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+            h1, h2 { margin: 0 0 10px; }
+            h2 { margin-top: 20px; font-size: 16px; }
+            .meta { margin-bottom: 12px; font-size: 12px; color: #334155; }
+            .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+            .card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+            th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; }
+            th { background: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <h1>Analise OFX - Exportacao Filtrada</h1>
+          <p class="meta">Gerado em ${this.escapeHtml(now.toLocaleString('pt-BR'))}</p>
+
+          <h2>Resumo Grupos</h2>
+          <div class="cards">
+            <div class="card"><strong>Qtd.</strong><br/>${summaryGroups.totalItems}</div>
+            <div class="card"><strong>Entradas</strong><br/>${this.formatCurrency(summaryGroups.totalCredits)}</div>
+            <div class="card"><strong>Saidas</strong><br/>${this.formatCurrency(summaryGroups.totalDebits)}</div>
+            <div class="card"><strong>Saldo</strong><br/>${this.formatCurrency(summaryGroups.netAmount)}</div>
+          </div>
+
+          <h2>Resumo Transacoes</h2>
+          <div class="cards">
+            <div class="card"><strong>Qtd.</strong><br/>${summaryTransactions.totalItems}</div>
+            <div class="card"><strong>Entradas</strong><br/>${this.formatCurrency(summaryTransactions.totalCredits)}</div>
+            <div class="card"><strong>Saidas</strong><br/>${this.formatCurrency(summaryTransactions.totalDebits)}</div>
+            <div class="card"><strong>Saldo</strong><br/>${this.formatCurrency(summaryTransactions.netAmount)}</div>
+          </div>
+
+          <h2>Grupos Filtrados</h2>
+          <table>
+            <thead>
+              <tr><th>Padrao</th><th>Qtd</th><th>Entradas</th><th>Saidas</th><th>Ignoradas</th><th>Internas</th><th>Par duplicado</th></tr>
+            </thead>
+            <tbody>${groupsRows}</tbody>
+          </table>
+
+          <h2>Transacoes Filtradas</h2>
+          <table>
+            <thead>
+              <tr><th>Data</th><th>Ano/Mes</th><th>Direcao</th><th>Valor</th><th>Banco OFX</th><th>Arquivo</th><th>Padrao</th><th>Descricao</th></tr>
+            </thead>
+            <tbody>${txRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const popup = window.open('', '_blank', 'width=1200,height=800');
+    if (!popup) {
+      this.toast.error('Nao foi possivel abrir a janela para exportacao em PDF.');
+      return;
+    }
+
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
+    popup.print();
+    this.toast.success('Visualizacao para PDF aberta. Use "Salvar como PDF" no dialog de impressao.');
+  }
+
+  private csvCell(value: string): string {
+    const safe = String(value ?? '').replace(/"/g, '""');
+    return `"${safe}"`;
+  }
+
+  private downloadTextFile(fileName: string, mimeType: string, content: string): void {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private timestampForFile(): string {
+    const now = new Date();
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  }
+
+  private formatDate(value: string): string {
+    if (!value || value.length < 10) {
+      return value;
+    }
+    const [year, month, day] = value.split('-');
+    return `${day}/${month}/${year}`;
+  }
+
+  private formatCurrency(value: number): string {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  }
+
+  private escapeHtml(value: string): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 }

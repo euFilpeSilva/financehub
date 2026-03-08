@@ -51,6 +51,23 @@
   </article>
 
   <article *ngIf="analysis() as result" class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card sm:p-6">
+    <div class="mb-3 flex flex-wrap justify-end gap-2">
+      <button
+        type="button"
+        (click)="exportFilteredCsv()"
+        class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+      >
+        Exportar CSV (filtrado)
+      </button>
+      <button
+        type="button"
+        (click)="exportFilteredPdf()"
+        class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+      >
+        Exportar PDF (filtrado)
+      </button>
+    </div>
+
     <div class="grid gap-3 md:grid-cols-4">
       <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Arquivos</p>
@@ -161,6 +178,14 @@
             Limpar selecao
           </button>
         </div>
+        <div class="grid gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-2 md:grid-cols-4">
+          <p class="text-xs text-slate-600"><strong>Qtd. grupos/linhas:</strong> {{ groupedPatternsSummary().totalItems }}</p>
+          <p class="text-xs text-emerald-700"><strong>Entradas:</strong> {{ groupedPatternsSummary().totalCredits | currency:'BRL':'symbol':'1.2-2' }}</p>
+          <p class="text-xs text-rose-700"><strong>Saidas:</strong> {{ groupedPatternsSummary().totalDebits | currency:'BRL':'symbol':'1.2-2' }}</p>
+          <p class="text-xs" [ngClass]="groupedPatternsSummary().netAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+            <strong>Saldo liquido:</strong> {{ groupedPatternsSummary().netAmount | currency:'BRL':'symbol':'1.2-2' }}
+          </p>
+        </div>
         <div class="max-h-[380px] overflow-auto">
           <table class="min-w-full divide-y divide-slate-100 text-sm">
             <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -219,6 +244,14 @@
               </span>
             </span>
           </h3>
+        </div>
+        <div class="grid gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-2 md:grid-cols-4">
+          <p class="text-xs text-slate-600"><strong>Qtd. transacoes:</strong> {{ displayedTransactionsSummary().totalItems }}</p>
+          <p class="text-xs text-emerald-700"><strong>Entradas:</strong> {{ displayedTransactionsSummary().totalCredits | currency:'BRL':'symbol':'1.2-2' }}</p>
+          <p class="text-xs text-rose-700"><strong>Saidas:</strong> {{ displayedTransactionsSummary().totalDebits | currency:'BRL':'symbol':'1.2-2' }}</p>
+          <p class="text-xs" [ngClass]="displayedTransactionsSummary().netAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+            <strong>Saldo liquido:</strong> {{ displayedTransactionsSummary().netAmount | currency:'BRL':'symbol':'1.2-2' }}
+          </p>
         </div>
         <div class="max-h-[380px] overflow-auto">
           <table class="min-w-full divide-y divide-slate-100 text-sm">
