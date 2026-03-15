@@ -203,6 +203,7 @@ export interface OfxAnalysisResult {
   availableYearMonths: string[];
   groups: OfxAnalysisGroup[];
   transactions: OfxAnalysisTransaction[];
+  fileWarnings: string[];
 }
 
 export interface ImportedStatementYearCleanupRequest {

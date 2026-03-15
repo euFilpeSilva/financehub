@@ -85,6 +85,15 @@ public class OfxImportService {
   private static final String ITAU_CARD_PAYMENT_DETAILED_PREFIX = "ITAU MC";
   private static final Pattern START_TAG_PATTERN = Pattern.compile("(?is)<DTSTART>(.*?)</DTSTART>");
   private static final Pattern END_TAG_PATTERN = Pattern.compile("(?is)<DTEND>(.*?)</DTEND>");
+  // Detects Itau abbreviated self-transfer memos like "PIX TRANSF THIAGO 31 01"
+  private static final Pattern ITAU_ABBREVIATED_SELF_TRANSFER_PATTERN =
+    Pattern.compile("\\bPIX TRANSF ([A-Z]{3,}) \\d{1,2} \\d{1,2}\\b");
+  // Detects Inter-style Pix key in memo: "Cp :18236120-Name"
+  private static final Pattern INTER_PIX_KEY_IN_MEMO_PATTERN =
+    Pattern.compile("Cp\\s*:\\s*(\\d{3,})-");
+  // Extracts a 4-digit year immediately before the file extension
+  private static final Pattern FILENAME_TERMINAL_YEAR_PATTERN =
+    Pattern.compile("(20\\d{2})(?:\\.[^.]+)?$", Pattern.CASE_INSENSITIVE);
 
   private final BankAccountService bankAccountService;
   private final BillService billService;
@@ -331,6 +340,7 @@ public class OfxImportService {
     Map<String, GroupAccumulator> grouped = new LinkedHashMap<>();
     Set<Integer> availableYears = new TreeSet<>();
     Set<String> availableYearMonths = new TreeSet<>();
+    List<String> fileWarnings = new ArrayList<>();
     int totalCredits = 0;
     int totalDebits = 0;
 
@@ -358,6 +368,15 @@ public class OfxImportService {
         .filter(tx -> tx != null)
         .toList();
       Set<String> itauCardPaymentPairKeys = buildItauCardPaymentPairKeys(parsedTransactions);
+
+      String crossOwnerWarning = detectCrossOwnerWarning(fileName, parsedTransactions, ownerName, ownerCpf);
+      if (crossOwnerWarning != null) {
+        fileWarnings.add(crossOwnerWarning);
+      }
+      String periodWarning = detectFilenamePeriodMismatch(fileName, content);
+      if (periodWarning != null) {
+        fileWarnings.add(periodWarning);
+      }
 
       for (OfxTransaction tx : parsedTransactions) {
         String normalizedMemo = normalizeText(tx.memo());
@@ -464,8 +483,82 @@ public class OfxImportService {
       new ArrayList<>(availableYears),
       new ArrayList<>(availableYearMonths),
       groups,
-      transactions
+      transactions,
+      fileWarnings
     );
+  }
+
+  private String detectCrossOwnerWarning(
+    String fileName,
+    List<OfxTransaction> parsedTransactions,
+    String ownerName,
+    String ownerCpf
+  ) {
+    if (ownerName == null || ownerName.isBlank()) {
+      return null;
+    }
+    String ownerCpfDigits = ownerCpf == null ? "" : ownerCpf.replaceAll("\\D", "");
+    if (ownerCpfDigits.isBlank()) {
+      return null;
+    }
+    int suspiciousCount = 0;
+    for (OfxTransaction tx : parsedTransactions) {
+      if (tx.amount().compareTo(BigDecimal.ZERO) >= 0) {
+        continue;
+      }
+      Matcher m = INTER_PIX_KEY_IN_MEMO_PATTERN.matcher(tx.memo());
+      if (!m.find()) {
+        continue;
+      }
+      String keyDigits = m.group(1);
+      if (keyDigits.length() < 8) {
+        continue;
+      }
+      String afterKey = tx.memo().substring(m.end()).replaceAll("[\"'{}]", "").trim();
+      String normalizedAfterKey = normalizeText(afterKey);
+      if (!hasOwnerNameEvidence(normalizedAfterKey, ownerName)) {
+        continue;
+      }
+      String ownerPrefix = ownerCpfDigits.length() >= 8 ? ownerCpfDigits.substring(0, 8) : ownerCpfDigits;
+      if (ownerCpfDigits.contains(keyDigits) || keyDigits.startsWith(ownerPrefix)) {
+        continue;
+      }
+      suspiciousCount += 1;
+    }
+    if (suspiciousCount >= 2) {
+      return "Arquivo \"" + fileName + "\": " + suspiciousCount
+        + " debito(s) apontam \"" + ownerName
+        + "\" como destinatario com chave Pix incompativel com o CPF informado."
+        + " Este extrato pode pertencer a outra pessoa que repassa valores para " + ownerName + ".";
+    }
+    return null;
+  }
+
+  private String detectFilenamePeriodMismatch(String fileName, String content) {
+    String dtStartRaw = extractTag(content, "DTSTART");
+    if (dtStartRaw == null || dtStartRaw.isBlank()) {
+      return null;
+    }
+    LocalDate periodStart = parseDate(dtStartRaw);
+    if (periodStart == null) {
+      return null;
+    }
+    Matcher yearMatcher = FILENAME_TERMINAL_YEAR_PATTERN.matcher(fileName);
+    if (!yearMatcher.find()) {
+      return null;
+    }
+    try {
+      int nameYear = Integer.parseInt(yearMatcher.group(1));
+      int actualYear = periodStart.getYear();
+      if (nameYear != actualYear) {
+        return "Arquivo \"" + fileName + "\": o nome sugere ano " + nameYear
+          + " mas o periodo real comeca em " + actualYear
+          + ". Verifique se o arquivo esta nomeado corretamente.";
+      }
+    } catch (NumberFormatException ignored) {
+      // ignored
+    }
+    return null;
   }
 
   private String formatYearMonth(LocalDate date) {
@@ -612,12 +705,37 @@ public class OfxImportService {
       return true;
     }
 
+    if (isItauAbbreviatedOwnTransferMemo(normalized, ownerName)) {
+      return true;
+    }
+
     String cpfDigits = ownerCpf == null ? "" : ownerCpf.replaceAll("\\D", "");
     if (cpfDigits.isBlank()) {
       return false;
     }
 
     return memo.replaceAll("\\D", "").contains(cpfDigits);
+  }
+
+  private boolean isItauAbbreviatedOwnTransferMemo(String normalizedMemo, String ownerName) {
+    if (normalizedMemo == null || normalizedMemo.isBlank()) {
+      return false;
+    }
+    if (ownerName == null || ownerName.isBlank()) {
+      return false;
+    }
+    Matcher matcher = ITAU_ABBREVIATED_SELF_TRANSFER_PATTERN.matcher(normalizedMemo);
+    if (!matcher.find()) {
+      return false;
+    }
+    String nameToken = matcher.group(1);
+    String normalizedOwnerName = normalizeText(ownerName);
+    for (String token : normalizedOwnerName.split(" ")) {
+      if (token.length() >= 3 && token.equals(nameToken)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private boolean isPicPayOwnTransferMemo(String normalizedMemo, String ownerName, String ownerCpf) {

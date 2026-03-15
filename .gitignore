@@ -31,6 +31,7 @@ gestao-financeira/coverage/
 # ---- Dados sensíveis locais ----
 extratos/
 historico_ofx_thiago/
+analises-ofx/
 
 # Qualquer diretorio com historico ou extrato no nome
 **/*historico*/

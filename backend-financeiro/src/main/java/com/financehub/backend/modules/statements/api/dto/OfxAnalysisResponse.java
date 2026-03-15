@@ -10,6 +10,7 @@ public record OfxAnalysisResponse(
   List<Integer> availableYears,
   List<String> availableYearMonths,
   List<OfxAnalysisGroupResponse> groups,
-  List<OfxAnalysisTransactionResponse> transactions
+  List<OfxAnalysisTransactionResponse> transactions,
+  List<String> fileWarnings
 ) {
 }

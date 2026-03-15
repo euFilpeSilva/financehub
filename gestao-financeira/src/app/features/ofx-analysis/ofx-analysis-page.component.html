@@ -87,6 +87,13 @@
       </div>
     </div>
 
+    <div *ngIf="result.fileWarnings && result.fileWarnings.length" class="mt-4 flex flex-col gap-2">
+      <div *ngFor="let warning of result.fileWarnings" class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <span class="mt-0.5 shrink-0 text-base leading-none">&#9888;</span>
+        <span>{{ warning }}</span>
+      </div>
+    </div>
+
     <form [formGroup]="filterForm" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-12">
       <label class="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 xl:col-span-2">
         Data inicial

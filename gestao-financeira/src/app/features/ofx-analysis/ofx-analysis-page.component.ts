@@ -67,6 +67,7 @@ export class OfxAnalysisPageComponent {
     availableYears: number[];
     availableYearMonths: string[];
     transactions: OfxAnalysisTransaction[];
+    fileWarnings: string[];
   } | null>(null);
 
   protected readonly monthOptions = computed(() => {
